@@ -63,7 +63,8 @@ Demora ~1min30 na primeira vez do dia, ~5s nas seguintes (veja [Cache](#cache)).
 | Só uma OSP | `npm run extracao -- --osp 254` |
 | Partes maiores (2000 linhas) | `npm run extracao -- --zip --linhas 2000` |
 | Salvar em outra pasta | `npm run extracao -- --out relatorio_agosto` |
-| **Dado fresquinho, sem cache** | `npm run extracao -- --zip --sem-cache` |
+| **Dado atualizado** (renova o cache) | `npm run extracao -- --zip --atualizar` |
+| Dado avulso, sem tocar no cache | `npm run extracao -- --zip --sem-cache` |
 
 > O `--` depois de `npm run extracao` é obrigatório. É ele que diz "o resto é
 > pro programa, não pro npm".
@@ -112,8 +113,8 @@ curl "http://localhost:8080/extracao?osp=254&formato=json"
 # acento no filtro: use --data-urlencode, senão o curl manda errado e dá 400
 curl -G "http://localhost:8080/extracao" --data-urlencode 'status=Concluído' -o concluidas.csv
 
-# ignorando o cache (dado do momento)
-curl "http://localhost:8080/extracao?formato=zip&ttl=0" -o extracao_osp.zip
+# dado atualizado (baixa do Bubble e renova o cache pra quem vier depois)
+curl "http://localhost:8080/extracao?formato=zip&atualizar=true" -o extracao_osp.zip
 ```
 
 Toda chamada precisa levar a chave no header — veja [Chave da API](#chave-da-api):
@@ -135,7 +136,8 @@ curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o e
 | `sep` | `?sep=%3B` | Troca a vírgula por `;` (Excel brasileiro) |
 | `bom` | `?bom=false` | Tira o BOM do CSV |
 | `linhas` | `?linhas=2000` | Tamanho de cada arquivo no zip (padrão 1500) |
-| `ttl` | `?ttl=0` | `0` ignora o cache e busca dado fresco |
+| `atualizar` | `?atualizar=true` | Busca dado fresco no Bubble e **renova** o cache — é o "atualizar" da tela |
+| `ttl` | `?ttl=0` | `0` busca dado fresco **sem** renovar o cache (uso avulso) |
 
 #### Todos, ou um só
 
@@ -261,20 +263,40 @@ Pra montar a planilha o programa precisa buscar ~165 mil registros no Bubble —
 tipo copiar cinco fichários inteiros. Leva ~1min30.
 
 Pra não repetir isso toda hora, ele guarda uma cópia local na pasta `.cache`.
-Nas execuções seguintes lê a cópia: ~5 segundos.
+Nas execuções seguintes lê a cópia, em vez de buscar tudo de novo.
 
-Essa cópia vale **15 minutos**. Depois disso ela é descartada e o programa
-busca tudo de novo no Bubble.
+A API tem ainda uma segunda camada: as linhas já montadas ficam na memória do
+processo pela mesma validade, então requisições seguidas nem releem o disco.
 
 | Situação | O que acontece | Tempo |
 | --- | --- | --- |
 | Primeira vez do dia | Busca tudo no Bubble | ~1min30 |
-| Rodou de novo em até 15 min | Lê a cópia local | ~5s |
+| Rodou de novo em até 15 min | Lê a cópia local | ~0,9s |
+| Requisição seguinte na API | Usa a memória | ~0,08s |
 | Rodou depois de 15 min | Busca tudo de novo | ~1min30 |
 
+Essa cópia vale **15 minutos**. Depois disso ela é descartada e o programa
+busca tudo de novo no Bubble.
+
 **Atenção:** se alguém mexeu no Bubble agora, a cópia pode estar até 15 minutos
-atrasada. Pra número oficial (fechamento, conferência), peça dado fresco com
-`--sem-cache` (terminal) ou `?ttl=0` (API).
+atrasada. Pra número oficial (fechamento, conferência), peça dado fresco.
+
+### Pedir dado fresco: `atualizar` ou `ttl=0`
+
+São coisas diferentes:
+
+| | Lê o cache | Busca no Bubble | Regrava o cache |
+| --- | --- | --- | --- |
+| `/extracao` (padrão) | sim, se ainda vale | só se vencido | sim |
+| `?atualizar=true` | **não** | **sempre** | **sim** |
+| `?ttl=0` | não | sempre | **não** |
+
+Use **`atualizar=true`** — é o botão "atualizar" da tela. Ele paga o ~1min30 uma
+vez e deixa a cópia nova no lugar, então quem pedir logo depois já pega rápido.
+
+`ttl=0` (e o `--sem-cache` do terminal) busca fresco mas joga fora: a próxima
+chamada vai baixar tudo de novo. Serve pra um dado avulso que não deve virar a
+cópia oficial, ou pra depurar.
 
 ### Quanto botar em `CACHE_TTL`
 
@@ -283,13 +305,13 @@ novo no Bubble.
 
 | Valor | Significa | Quando usar |
 | --- | --- | --- |
-| `0` | sem cache, sempre busca no Bubble | número oficial, fechamento |
+| `0` | sem cache, sempre busca no Bubble | quase nunca — deixa tudo lento |
 | `900` | 15 minutos — **padrão, recomendado** | uso normal |
 | `3600` | 1 hora | você vai gerar vários recortes seguidos |
 | `86400` | 1 dia | dado do dia anterior já serve |
 
 Na prática: deixe `900` e esqueça. Quando precisar do dado do minuto, não mexa
-no arquivo — peça na hora, com `--sem-cache` ou `?ttl=0`.
+no arquivo — peça na hora, com `?atualizar=true`.
 
 Pra apagar a cópia: `rm -rf .cache` — ela se refaz sozinha depois. Os arquivos
 lá dentro são JSON cru do Bubble, numa linha só; é normal estarem ilegíveis.
