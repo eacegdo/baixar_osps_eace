@@ -21,11 +21,13 @@ const TABELAS = ['FR_OSP', 'contrato_taxa_instalacao', 'OSP', 'Escolas', 'fornec
  * Baixa as cinco tabelas em paralelo. O cliente já limita as requisições em voo
  * globalmente, então disparar tudo de uma vez não sobrecarrega o Bubble.
  */
-export async function carregarDados(client, { ttl = 0, onTabela } = {}) {
+export async function carregarDados(client, { ttl = 0, atualizar = false, onTabela } = {}) {
   const entradas = await Promise.all(
     TABELAS.map(async (tabela) => {
       const inicio = Date.now();
-      const { dados, doCache } = await comCache(tabela, ttl, () => client.fetchAll(tabela));
+      const { dados, doCache } = await comCache(tabela, ttl, () => client.fetchAll(tabela), {
+        ignorar: atualizar,
+      });
       onTabela?.({ tabela, registros: dados.length, ms: Date.now() - inicio, doCache });
       return [tabela, dados];
     }),

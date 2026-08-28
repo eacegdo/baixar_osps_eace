@@ -62,15 +62,19 @@ const carimbo = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..
  */
 let memoria = null;
 
-async function extrair(ttl) {
-  // ttl 0 é o pedido explícito de dado fresco: descarta o que estiver guardado.
-  if (memoria && ttl > 0 && Date.now() < memoria.expiraEm) return memoria.promessa;
+/**
+ * `atualizar` ignora o que está guardado (memória e disco), baixa do Bubble e
+ * regrava os dois — é o botão "atualizar". `ttl` 0 passa por fora do cache sem
+ * regravar nada, para um dado avulso que não deve virar o novo estado.
+ */
+async function extrair(ttl, atualizar) {
+  if (memoria && !atualizar && ttl > 0 && Date.now() < memoria.expiraEm) return memoria.promessa;
 
   const entrada = {
     // Enquanto a extração corre, a validade cobre só o tempo dela, para as
     // requisições concorrentes se juntarem; ao terminar vale o ttl cheio.
     expiraEm: Date.now() + 300_000,
-    promessa: carregarDados(client, { ttl }).then(gerarLinhas),
+    promessa: carregarDados(client, { ttl, atualizar }).then(gerarLinhas),
   };
   memoria = entrada;
 
@@ -104,17 +108,18 @@ app.get(
           sep: { type: 'string', minLength: 1, maxLength: 1, default: ',', description: 'Separador do CSV; use ; para Excel brasileiro' },
           bom: { type: 'boolean', default: true, description: 'BOM UTF-8, para o Excel ler os acentos' },
           linhas: { type: 'integer', minimum: 1, default: 1500, description: 'Máximo de linhas por arquivo no zip' },
-          ttl: { type: 'integer', minimum: 0, description: 'Validade do cache em segundos; 0 busca dado fresco' },
+          atualizar: { type: 'boolean', default: false, description: 'Ignora o cache, baixa do Bubble e regrava o cache. Use quando quiser dado atualizado' },
+          ttl: { type: 'integer', minimum: 0, description: 'Validade do cache em segundos; 0 busca dado fresco sem regravar o cache' },
         },
       },
     },
   },
   async (request, reply) => {
     const {
-      formato, sep, bom, linhas: maxLinhas, ttl,
+      formato, sep, bom, linhas: maxLinhas, ttl, atualizar,
       fornecedor, fornecedor_id: fornecedorId, status, osp, osp_id: ospId,
     } = request.query;
-    const linhas = filtrar(await extrair(ttl ?? CACHE_TTL), {
+    const linhas = filtrar(await extrair(ttl ?? CACHE_TTL, atualizar), {
       fornecedor, fornecedorId, status, numOsp: osp, ospId,
     });
     reply.header('X-Row-Count', String(linhas.length));

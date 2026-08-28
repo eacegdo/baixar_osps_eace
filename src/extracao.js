@@ -4,7 +4,7 @@
 //                                        [--zip] [--unico arquivo.csv] [--sep ';']
 //                                        [--fornecedor BRISANET] [--fornecedor-id 17746x1528]
 //                                        [--osp 254] [--osp-id 17825x2065] [--status Concluído]
-//                                        [--ttl 900] [--sem-cache]
+//                                        [--ttl 900] [--sem-cache] [--atualizar]
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -37,6 +37,8 @@ const inicio = Date.now();
 console.log('Baixando tabelas...');
 const dados = await carregarDados(client, {
   ttl,
+  // --atualizar baixa do Bubble e regrava o cache; --sem-cache passa por fora dele.
+  atualizar: Boolean(args.atualizar),
   onTabela: ({ tabela, registros, ms, doCache }) =>
     console.log(`  ${tabela}: ${registros} registros (${(ms / 1000).toFixed(1)}s${doCache ? ', cache' : ''})`),
 });
