@@ -25,7 +25,10 @@ export async function carregarDados(client, { ttl = 0, atualizar = false, onTabe
   const entradas = await Promise.all(
     TABELAS.map(async (tabela) => {
       const inicio = Date.now();
-      const { dados, doCache } = await comCache(tabela, ttl, () => client.fetchAll(tabela), {
+      // A versão entra na chave para o cache da test não se passar pelo da live.
+      // A live fica sem prefixo, para os arquivos já gravados continuarem valendo.
+      const chave = client.versao === 'test' ? `test_${tabela}` : tabela;
+      const { dados, doCache } = await comCache(chave, ttl, () => client.fetchAll(tabela), {
         ignorar: atualizar,
       });
       onTabela?.({ tabela, registros: dados.length, ms: Date.now() - inicio, doCache });

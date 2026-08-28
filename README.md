@@ -62,6 +62,7 @@ Demora ~1min30 na primeira vez do dia, ~5s nas seguintes (veja [Cache](#cache)).
 | Só um status | `npm run extracao -- --status Concluído` |
 | Só uma OSP | `npm run extracao -- --osp 254` |
 | Partes maiores (2000 linhas) | `npm run extracao -- --zip --linhas 2000` |
+| Puxar da versão de desenvolvimento | `npm run extracao -- --versao test` |
 | Salvar em outra pasta | `npm run extracao -- --out relatorio_agosto` |
 | **Dado atualizado** (renova o cache) | `npm run extracao -- --zip --atualizar` |
 | Dado avulso, sem tocar no cache | `npm run extracao -- --zip --sem-cache` |
@@ -135,6 +136,7 @@ curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o e
 | `status` | `?status=Concluído` | Só um status de OSP |
 | `sep` | `?sep=%3B` | Troca a vírgula por `;` (Excel brasileiro) |
 | `bom` | `?bom=false` | Tira o BOM do CSV |
+| `versao` | `?versao=test` | Versão do app no Bubble: `live` (padrão) ou `test` (`/version-test`) |
 | `arquivo` | `?arquivo=osp_brisanet` | Nome do arquivo baixado, sem extensão (padrão `extracao_osp-<carimbo>`) |
 | `linhas` | `?linhas=2000` | Tamanho de cada arquivo no zip (padrão 1500) |
 | `atualizar` | `?atualizar=true` | Busca dado fresco no Bubble e **renova** o cache — é o "atualizar" da tela |

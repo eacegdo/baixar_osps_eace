@@ -11,7 +11,18 @@ const API_KEY = process.env.API_KEY; // se definida, exigida em toda rota menos 
 const PORT = Number(process.env.PORT ?? 8080);
 const CACHE_TTL = Number(process.env.CACHE_TTL ?? 900);
 
-const client = criarClient();
+// Um cliente por versão do app no Bubble; criados na primeira chamada, para
+// quem só usa a live não pagar nada pela test.
+const clients = new Map();
+const clientDe = (versao) => {
+  if (!clients.has(versao)) clients.set(versao, criarClient(versao));
+  return clients.get(versao);
+};
+
+// A live sobe junto com o servidor: é ela que valida as variáveis de ambiente
+// no boot, em vez de o erro só aparecer na primeira requisição.
+clientDe('live');
+
 const app = Fastify({ logger: true });
 
 await app.register(swagger, {
@@ -59,29 +70,30 @@ const carimbo = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..
  * disso: requisições concorrentes compartilham a mesma extração (dois cliques
  * no botão não baixam as cinco tabelas duas vezes) e requisições seguidas não
  * pagam de novo a releitura do cache em disco (~225 MB de JSON) nem a montagem
- * das ~40 mil linhas.
+ * das ~40 mil linhas. Uma entrada por versão: live e test não se misturam.
  */
-let memoria = null;
+const memoria = new Map();
 
 /**
  * `atualizar` ignora o que está guardado (memória e disco), baixa do Bubble e
  * regrava os dois — é o botão "atualizar". `ttl` 0 passa por fora do cache sem
  * regravar nada, para um dado avulso que não deve virar o novo estado.
  */
-async function extrair(ttl, atualizar) {
-  if (memoria && !atualizar && ttl > 0 && Date.now() < memoria.expiraEm) return memoria.promessa;
+async function extrair(ttl, atualizar, versao) {
+  const guardada = memoria.get(versao);
+  if (guardada && !atualizar && ttl > 0 && Date.now() < guardada.expiraEm) return guardada.promessa;
 
   const entrada = {
     // Enquanto a extração corre, a validade cobre só o tempo dela, para as
     // requisições concorrentes se juntarem; ao terminar vale o ttl cheio.
     expiraEm: Date.now() + 300_000,
-    promessa: carregarDados(client, { ttl, atualizar }).then(gerarLinhas),
+    promessa: carregarDados(clientDe(versao), { ttl, atualizar }).then(gerarLinhas),
   };
-  memoria = entrada;
+  memoria.set(versao, entrada);
 
   entrada.promessa.then(
     () => { entrada.expiraEm = Date.now() + ttl * 1000; },
-    () => { if (memoria === entrada) memoria = null; },
+    () => { if (memoria.get(versao) === entrada) memoria.delete(versao); },
   );
   return entrada.promessa;
 }
@@ -111,6 +123,7 @@ app.get(
           linhas: { type: 'integer', minimum: 1, default: 1500, description: 'Máximo de linhas por arquivo no zip' },
           atualizar: { type: 'boolean', default: false, description: 'Ignora o cache, baixa do Bubble e regrava o cache. Use quando quiser dado atualizado' },
           ttl: { type: 'integer', minimum: 0, description: 'Validade do cache em segundos; 0 busca dado fresco sem regravar o cache' },
+          versao: { type: 'string', enum: ['live', 'test'], default: 'live', description: 'Versão do app no Bubble: live ou test (/version-test)' },
           arquivo: { type: 'string', minLength: 1, maxLength: 120, description: 'Nome do arquivo baixado, sem extensão. Padrão: extracao_osp-<carimbo>' },
         },
       },
@@ -118,13 +131,16 @@ app.get(
   },
   async (request, reply) => {
     const {
-      formato, sep, bom, linhas: maxLinhas, ttl, atualizar, arquivo,
+      formato, sep, bom, linhas: maxLinhas, ttl, atualizar, arquivo, versao,
       fornecedor, fornecedor_id: fornecedorId, status, osp, osp_id: ospId,
     } = request.query;
     // O nome vem do cliente e vai para um header: passa pelo nomeSeguro para
     // não escapar da aspa do Content-Disposition nem virar caminho.
-    const nomeBase = arquivo ? nomeSeguro(arquivo.replace(/\.(csv|zip)$/i, '')) : `extracao_osp-${carimbo()}`;
-    const linhas = filtrar(await extrair(ttl ?? CACHE_TTL, atualizar), {
+    const nomeBase = arquivo
+      ? nomeSeguro(arquivo.replace(/\.(csv|zip)$/i, ''))
+      : `extracao_osp${versao === 'test' ? '-test' : ''}-${carimbo()}`;
+    reply.header('X-Bubble-Version', versao);
+    const linhas = filtrar(await extrair(ttl ?? CACHE_TTL, atualizar, versao), {
       fornecedor, fornecedorId, status, numOsp: osp, ospId,
     });
     reply.header('X-Row-Count', String(linhas.length));

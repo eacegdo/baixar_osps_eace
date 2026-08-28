@@ -5,6 +5,7 @@
 //                                        [--fornecedor BRISANET] [--fornecedor-id 17746x1528]
 //                                        [--osp 254] [--osp-id 17825x2065] [--status Concluído]
 //                                        [--ttl 900] [--sem-cache] [--atualizar]
+//                                        [--versao live|test]
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
@@ -31,10 +32,12 @@ const maxLinhas = Number(args.linhas ?? 1500);
 const sep = args.sep ?? ',';
 const ttl = args['sem-cache'] ? 0 : Number(args.ttl ?? process.env.CACHE_TTL ?? 900);
 
-const client = criarClient();
+const versao = args.versao === true ? 'live' : (args.versao ?? 'live');
+
+const client = criarClient(versao);
 const inicio = Date.now();
 
-console.log('Baixando tabelas...');
+console.log(`Baixando tabelas (${versao})...`);
 const dados = await carregarDados(client, {
   ttl,
   // --atualizar baixa do Bubble e regrava o cache; --sem-cache passa por fora dele.
