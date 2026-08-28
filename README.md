@@ -30,7 +30,7 @@ E preencha:
 | `BUBBLE_BASE_URL` | Endereço da API do Bubble | `https://eace.org.br/api/1.1/obj` |
 | `BUBBLE_TOKEN` | Senha de acesso à API | No editor do Bubble: **Settings → API → API Tokens** |
 | `CACHE_TTL` | Validade da cópia local, em segundos | `900` (15 min) — veja [Cache](#cache) |
-| `API_KEY` | Opcional: senha da sua API | Deixe vazio pra não exigir senha |
+| `API_KEY` | Senha da sua API | Veja [Chave da API](#chave-da-api) |
 | `PORT` | Porta da API | `8080` |
 
 > O `.env` tem senha dentro. Ele já está no `.gitignore` — não suba pro Git.
@@ -116,7 +116,7 @@ curl -G "http://localhost:8080/extracao" --data-urlencode 'status=Concluído' -o
 curl "http://localhost:8080/extracao?formato=zip&ttl=0" -o extracao_osp.zip
 ```
 
-Se você preencheu `API_KEY` no `.env`, toda chamada precisa levar a senha:
+Toda chamada precisa levar a chave no header — veja [Chave da API](#chave-da-api):
 
 ```bash
 curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o extracao.zip
@@ -213,6 +213,48 @@ docker run -d -p 8080:8080 --env-file .env extracao-osp
 
 ---
 
+## Chave da API
+
+A API é protegida por uma chave no header `X-API-Key`. Ela fica no `.env`:
+
+```
+API_KEY=sua_chave_aqui
+```
+
+Toda chamada precisa mandar a chave:
+
+```bash
+curl -H "X-API-Key: sua_chave_aqui" "http://localhost:8080/extracao?formato=zip" -o extracao.zip
+```
+
+Também aceita o formato `Authorization: Bearer sua_chave_aqui`, se o sistema que
+chama já usar esse padrão.
+
+Sem a chave, ou com a chave errada, a resposta é:
+
+```json
+{ "error": "chave de API ausente ou inválida" }
+```
+
+Duas rotas ficam abertas de propósito: `/health` (é ela que o Docker consulta
+pra saber se a API está de pé) e `/docs` (a página precisa abrir pra você
+clicar em **Authorize** e colar a chave; as chamadas de dentro dela já vão
+autenticadas).
+
+**Gerar uma chave nova:**
+
+```bash
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"
+```
+
+Cole o resultado em `API_KEY=` no `.env` e reinicie a API. Quem usava a chave
+antiga para de funcionar na hora — é assim que se revoga o acesso de alguém.
+
+**Se deixar `API_KEY` vazio**, a API fica aberta pra qualquer um que alcance a
+porta. Só faça isso rodando local, na sua máquina.
+
+---
+
 ## Cache
 
 Pra montar a planilha o programa precisa buscar ~165 mil registros no Bubble —
@@ -287,6 +329,9 @@ PORT=8081 npm start                # ou sobe em outra porta
 
 **`BUBBLE_BASE_URL e BUBBLE_TOKEN são obrigatórios`**
 Falta o `.env`, ou ele está incompleto. Veja o passo 1.
+
+**`{"error":"chave de API ausente ou inválida"}`**
+Faltou o header `X-API-Key`, ou ele não bate com o `API_KEY` do `.env`.
 
 **`bubble returned 401` / `403`**
 Token errado ou vencido. Gere outro em Settings → API no editor do Bubble.

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import Fastify from 'fastify';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -5,7 +6,7 @@ import { criarClient } from './client.js';
 import { COLUNAS, carregarDados, gerarLinhas, filtrar, particionar, csvCompleto } from './extracao-core.js';
 import { zipArquivos } from './zip.js';
 
-const API_KEY = process.env.API_KEY; // opcional, protege esta API
+const API_KEY = process.env.API_KEY; // se definida, exigida em toda rota menos /health
 const PORT = Number(process.env.PORT ?? 8080);
 const CACHE_TTL = Number(process.env.CACHE_TTL ?? 900);
 
@@ -20,16 +21,32 @@ await app.register(swagger, {
       version: '1.0.0',
     },
     tags: [{ name: 'extração', description: 'Relatório formatado de OSP' }],
+    components: {
+      securitySchemes: {
+        apiKey: { type: 'apiKey', name: 'X-API-Key', in: 'header' },
+      },
+    },
+    security: [{ apiKey: [] }],
   },
 });
 await app.register(swaggerUi, { routePrefix: '/docs' });
 
+/** Comparação de tempo constante, para a chave não vazar por timing. */
+function chaveConfere(recebida) {
+  const a = Buffer.from(String(recebida));
+  const b = Buffer.from(API_KEY);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 app.addHook('onRequest', async (request, reply) => {
   if (!API_KEY) return;
+  // /health fica aberto: é ele que o healthcheck do Docker chama.
+  // /docs também, para a página abrir e você clicar em Authorize.
   if (request.url === '/health' || request.url.startsWith('/docs')) return;
+
   const header = request.headers['x-api-key'] ?? '';
   const bearer = (request.headers.authorization ?? '').replace(/^Bearer /, '');
-  if (header !== API_KEY && bearer !== API_KEY) {
+  if (!chaveConfere(header) && !chaveConfere(bearer)) {
     return reply.code(401).send({ error: 'chave de API ausente ou inválida' });
   }
 });
