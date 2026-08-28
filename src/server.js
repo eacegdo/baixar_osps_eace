@@ -54,20 +54,31 @@ app.addHook('onRequest', async (request, reply) => {
 const carimbo = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
 
 /**
- * Uma extração em andamento é reaproveitada por requisições concorrentes: sem
- * isso, dois cliques no botão baixariam as cinco tabelas duas vezes.
+ * As linhas prontas ficam em memória por `ttl` segundos. Duas coisas dependem
+ * disso: requisições concorrentes compartilham a mesma extração (dois cliques
+ * no botão não baixam as cinco tabelas duas vezes) e requisições seguidas não
+ * pagam de novo a releitura do cache em disco (~225 MB de JSON) nem a montagem
+ * das ~40 mil linhas.
  */
-let emAndamento = null;
+let memoria = null;
 
 async function extrair(ttl) {
-  if (!emAndamento) {
-    emAndamento = carregarDados(client, { ttl })
-      .then(gerarLinhas)
-      .finally(() => {
-        emAndamento = null;
-      });
-  }
-  return emAndamento;
+  // ttl 0 é o pedido explícito de dado fresco: descarta o que estiver guardado.
+  if (memoria && ttl > 0 && Date.now() < memoria.expiraEm) return memoria.promessa;
+
+  const entrada = {
+    // Enquanto a extração corre, a validade cobre só o tempo dela, para as
+    // requisições concorrentes se juntarem; ao terminar vale o ttl cheio.
+    expiraEm: Date.now() + 300_000,
+    promessa: carregarDados(client, { ttl }).then(gerarLinhas),
+  };
+  memoria = entrada;
+
+  entrada.promessa.then(
+    () => { entrada.expiraEm = Date.now() + ttl * 1000; },
+    () => { if (memoria === entrada) memoria = null; },
+  );
+  return entrada.promessa;
 }
 
 // ---------------------------------------------------------------- extração
