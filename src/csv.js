@@ -19,18 +19,28 @@ export function columns(records) {
   return cols.concat([...seen].sort((a, b) => a.localeCompare(b)));
 }
 
+/**
+ * Quebra de linha dentro de uma célula vira espaço. O escape RFC 4180 já daria
+ * conta dela (a célula sai entre aspas), mas quem lê o arquivo sem respeitar as
+ * aspas parte a linha no meio: o resto das colunas vira uma linha nova, que
+ * começa com o separador e o campo seguinte cai debaixo da primeira coluna.
+ * Como nenhuma coluna do relatório quer texto de várias linhas, é mais barato
+ * tirar a quebra do que confiar no leitor.
+ */
+const umaLinha = (texto) => texto.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+
 /** Renders a JSON value as a CSV cell; objects and lists stay as compact JSON. */
 export function formatValue(value) {
   if (value === null || value === undefined) return '';
   switch (typeof value) {
     case 'string':
-      return value;
+      return umaLinha(value);
     case 'number':
       return Number.isFinite(value) ? String(value) : '';
     case 'boolean':
       return String(value);
     default:
-      return JSON.stringify(value);
+      return umaLinha(JSON.stringify(value));
   }
 }
 
