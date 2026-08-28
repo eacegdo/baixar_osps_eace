@@ -5,6 +5,7 @@ import swaggerUi from '@fastify/swagger-ui';
 import { criarClient } from './client.js';
 import { COLUNAS, carregarDados, gerarLinhas, filtrar, particionar, csvCompleto } from './extracao-core.js';
 import { zipArquivos } from './zip.js';
+import { nomeSeguro } from './formato.js';
 
 const API_KEY = process.env.API_KEY; // se definida, exigida em toda rota menos /health
 const PORT = Number(process.env.PORT ?? 8080);
@@ -110,15 +111,19 @@ app.get(
           linhas: { type: 'integer', minimum: 1, default: 1500, description: 'Máximo de linhas por arquivo no zip' },
           atualizar: { type: 'boolean', default: false, description: 'Ignora o cache, baixa do Bubble e regrava o cache. Use quando quiser dado atualizado' },
           ttl: { type: 'integer', minimum: 0, description: 'Validade do cache em segundos; 0 busca dado fresco sem regravar o cache' },
+          arquivo: { type: 'string', minLength: 1, maxLength: 120, description: 'Nome do arquivo baixado, sem extensão. Padrão: extracao_osp-<carimbo>' },
         },
       },
     },
   },
   async (request, reply) => {
     const {
-      formato, sep, bom, linhas: maxLinhas, ttl, atualizar,
+      formato, sep, bom, linhas: maxLinhas, ttl, atualizar, arquivo,
       fornecedor, fornecedor_id: fornecedorId, status, osp, osp_id: ospId,
     } = request.query;
+    // O nome vem do cliente e vai para um header: passa pelo nomeSeguro para
+    // não escapar da aspa do Content-Disposition nem virar caminho.
+    const nomeBase = arquivo ? nomeSeguro(arquivo.replace(/\.(csv|zip)$/i, '')) : `extracao_osp-${carimbo()}`;
     const linhas = filtrar(await extrair(ttl ?? CACHE_TTL, atualizar), {
       fornecedor, fornecedorId, status, numOsp: osp, ospId,
     });
@@ -133,14 +138,14 @@ app.get(
       }));
       return reply
         .header('Content-Type', 'application/zip')
-        .header('Content-Disposition', `attachment; filename="extracao_osp-${carimbo()}.zip"`)
+        .header('Content-Disposition', `attachment; filename="${nomeBase}.zip"`)
         .header('X-File-Count', String(arquivos.length))
         .send(await zipArquivos(arquivos));
     }
 
     return reply
       .header('Content-Type', 'text/csv; charset=utf-8')
-      .header('Content-Disposition', `attachment; filename="extracao_osp-${carimbo()}.csv"`)
+      .header('Content-Disposition', `attachment; filename="${nomeBase}.csv"`)
       .send(csvCompleto(linhas, sep, bom));
   },
 );
