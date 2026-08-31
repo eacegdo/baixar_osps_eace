@@ -117,7 +117,7 @@ app.get(
           fornecedor_id: { type: 'string', description: 'Unique id do fornecedor no Bubble (ex.: 1774638667943x152870812523466340)' },
           osp_id: { type: 'string', description: 'Unique id da OSP no Bubble' },
           status: { type: 'string', description: 'Status da OSP. * (ou vazio) traz todos' },
-          osp: { type: 'string', description: 'Número da OSP ou o unique id dela. * (ou vazio) traz todos' },
+          osp: { type: 'string', description: 'Número definitivo ou provisório da OSP, ou o unique id dela. * (ou vazio) traz todos' },
           sep: { type: 'string', minLength: 1, maxLength: 1, default: ',', description: 'Separador do CSV; use ; para Excel brasileiro' },
           bom: { type: 'boolean', default: true, description: 'BOM UTF-8, para o Excel ler os acentos' },
           linhas: { type: 'integer', minimum: 1, default: 1500, description: 'Máximo de linhas por arquivo no zip' },

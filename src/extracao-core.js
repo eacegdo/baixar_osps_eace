@@ -47,17 +47,20 @@ export function gerarLinhas(dados) {
   const escolaPorId = porId(dados.Escolas);
   const fornecedorPorId = porId(dados.fornecedor);
 
-  // A OSP guarda a lista de FRs, não o contrário: inverte para achar a OSP de cada FR.
+  // A OSP guarda a lista de FRs; inverte para achar a OSP de cada FR.
+  // Fallback: FR.OSP, para FR cujo vínculo só existe nesse lado (OSP ainda provisória).
+  const ospPorId = porId(dados.OSP);
   const ospPorFr = new Map();
   for (const osp of dados.OSP) {
     for (const frId of osp.FR ?? []) ospPorFr.set(frId, osp);
   }
 
   const montar = (fr, item) => {
-    const osp = ospPorFr.get(fr._id) ?? {};
+    const osp = ospPorFr.get(fr._id) ?? ospPorId.get(fr.OSP) ?? {};
     const escola = escolaPorId.get(item?.escola ?? fr.Escola) ?? {};
     const fornecedor = fornecedorPorId.get(item?.Fornecedor ?? osp.Fornecedor) ?? {};
-    const numOsp = osp.OSnum ?? item?.['Num OSP'] ?? '';
+    // Só o número definitivo do portal; provisório fica em Num provisorio.
+    const numOsp = osp.OSnum ?? '';
 
     return {
       'Projeto': escola.INEP ?? fr.INEP ?? '',
@@ -123,7 +126,7 @@ const igual = (a, b) => String(a ?? '').toLowerCase() === String(b ?? '').toLowe
 
 /**
  * `fornecedorId` e `ospId` filtram pelo unique id do Bubble. `fornecedor` e
- * `numOsp` aceitam o valor legível ou, por conveniência, o próprio id.
+ * `numOsp` aceitam o valor legível (definitivo ou provisório) ou o próprio id.
  */
 export function filtrar(linhas, { fornecedor, fornecedorId, status, numOsp, ospId } = {}) {
   const testes = [];
@@ -142,7 +145,9 @@ export function filtrar(linhas, { fornecedor, fornecedorId, status, numOsp, ospI
     testes.push(
       ehIdBubble(numOsp)
         ? (l) => l._ospId === numOsp
-        : (l) => String(l['Num OSP']) === String(numOsp),
+        // Aceita número definitivo ou provisório (FR ainda sem OSnum no portal).
+        : (l) => String(l['Num OSP']) === String(numOsp)
+          || String(l['Num provisorio']) === String(numOsp),
     );
   }
   if (!todos(status)) testes.push((l) => igual(l['Status OSP'], status));

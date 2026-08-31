@@ -60,7 +60,7 @@ Demora ~1min30 na primeira vez do dia, ~5s nas seguintes (veja [Cache](#cache)).
 | Fornecedor pelo unique id | `npm run extracao -- --fornecedor-id 1774638667943x152870812523466340` |
 | OSP pelo unique id | `npm run extracao -- --osp-id 1762525512670x975509644092375000` |
 | Só um status | `npm run extracao -- --status Concluído` |
-| Só uma OSP | `npm run extracao -- --osp 254` |
+| Só uma OSP (definitivo ou provisório) | `npm run extracao -- --osp 254` |
 | Partes maiores (2000 linhas) | `npm run extracao -- --zip --linhas 2000` |
 | Puxar da versão de desenvolvimento | `npm run extracao -- --versao test` |
 | Salvar em outra pasta | `npm run extracao -- --out relatorio_agosto` |
@@ -131,7 +131,7 @@ curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o e
 | `formato` | `?formato=zip` | `csv` (padrão), `zip` ou `json` |
 | `fornecedor` | `?fornecedor=BRISANET` | Nome do fornecedor (aceita o id também) |
 | `fornecedor_id` | `?fornecedor_id=1774638667943x152870812523466340` | Unique id do fornecedor no Bubble |
-| `osp` | `?osp=254` | Número da OSP (aceita o id também) |
+| `osp` | `?osp=254` | Número definitivo ou provisório da OSP (aceita o id também) |
 | `osp_id` | `?osp_id=1762525512670x975509644092375000` | Unique id da OSP no Bubble |
 | `status` | `?status=Concluído` | Só um status de OSP |
 | `sep` | `?sep=%3B` | Troca a vírgula por `;` (Excel brasileiro) |
