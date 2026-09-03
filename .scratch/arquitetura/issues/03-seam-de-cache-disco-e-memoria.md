@@ -6,7 +6,9 @@ Depois deste ticket as duas ficam atrás da mesma interface, como dois adapters,
 
 **Blocked by:** 02 — Testar os três formatos da rota de extração.
 
-**Status:** done
+**Status:** ready-for-human
+
+**Implementado:** falta a revisão humana; veja os commits em `master`.
 
 - [x] Disco e memória satisfazem a mesma interface de cache
 - [x] Duas chamadas concorrentes com o mesmo recorte produzem uma extração só

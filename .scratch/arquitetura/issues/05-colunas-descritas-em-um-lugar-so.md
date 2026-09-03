@@ -6,7 +6,9 @@ Depois deste ticket cada coluna é uma entrada só, declarando nome, de onde o v
 
 **Blocked by:** 04 — Linha só com o que o relatório mostra.
 
-**Status:** done
+**Status:** ready-for-human
+
+**Implementado:** falta a revisão humana; veja os commits em `master`.
 
 - [x] Cada coluna é declarada uma vez, com nome, origem e formato
 - [x] O cabeçalho do CSV e as chaves da linha vêm da mesma declaração

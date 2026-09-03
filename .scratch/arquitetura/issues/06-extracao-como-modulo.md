@@ -6,7 +6,9 @@ Depois deste ticket uma entrada recebe o cliente e as opções e devolve a extra
 
 **Blocked by:** 03 — Um seam de cache com adapter de disco e de memória; 05 — Colunas descritas em um lugar só.
 
-**Status:** done
+**Status:** ready-for-human
+
+**Implementado:** falta a revisão humana; veja os commits em `master`.
 
 - [x] Uma chamada produz a extração a partir do cliente e das opções
 - [x] As saídas csv, zip e json são métodos da extração

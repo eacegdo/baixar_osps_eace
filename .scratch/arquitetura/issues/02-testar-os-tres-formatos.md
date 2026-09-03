@@ -6,7 +6,9 @@ A partir daqui existe rede de segurança pros tickets seguintes.
 
 **Blocked by:** 01 — Montar o app sem subir servidor.
 
-**Status:** done
+**Status:** ready-for-human
+
+**Implementado:** falta a revisão humana; veja os commits em `master`.
 
 - [x] O app recebe a fonte de dados por injeção; em produção segue usando o cliente do Bubble
 - [x] `formato=csv` devolve o cabeçalho do relatório, uma linha por item, separador configurável e BOM quando pedido

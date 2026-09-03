@@ -20,3 +20,10 @@ colunas do csv saiu. Os três campos `_fornecedorId`, `_ospId` e `_escolaId`
 continuam na linha, e portanto na resposta json, porque tirá-los quebra quem
 os estiver lendo hoje. Estão marcados como compatibilidade: quando a confirmação
 vier, são três linhas a apagar em `montar`, sem tocar em filtro nenhum.
+
+**Achado da revisão:** os ids não são só de uso interno — o `README.md`
+ensina a descobri-los pedindo a extração em json ("cada linha traz
+`_fornecedorId` e `_ospId`"). Tirá-los da resposta é quebra de contrato
+documentado, não só de contrato implícito: além de confirmar com quem consome
+o json, o README precisa mudar junto, e passa a faltar uma forma de descobrir
+o unique id de um fornecedor ou de uma OSP pela API.

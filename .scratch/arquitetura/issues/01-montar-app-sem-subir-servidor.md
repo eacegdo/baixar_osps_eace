@@ -6,7 +6,9 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** done
+**Status:** ready-for-human
+
+**Implementado:** falta a revisão humana; veja os commits em `master`.
 
 - [x] Importar o módulo do app não escuta em porta nenhuma
 - [x] O entrypoint continua subindo o servidor como hoje, incluindo o log da documentação
