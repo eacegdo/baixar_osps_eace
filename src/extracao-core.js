@@ -5,16 +5,67 @@ import { cacheEmDisco } from './cache.js';
 import { headerRow, toRow } from './csv.js';
 import { data, moeda, decimal, simNao, nomeArquivo, nomeSeguro } from './formato.js';
 
-export const COLUNAS = [
-  'Projeto', 'Cod Fornecedor', 'Fornecedor', 'CNPJ', 'Num OSP', 'Num Obra',
-  'Descrição Item', 'Qnt Produto', 'Valor unite ur', 'Valor Produto', 'Prod serv',
-  'Previsão de execução', 'Num provisorio', 'Validação OSP', 'Status OSP',
-  'Status escola', 'Status NF Sisop', 'Num NF', 'Valor da NF', 'Fase',
-  'Data envio SAP', 'Data Nota Anexada', 'Data previsão de pagamnto',
-  'Titulo Aquivo NF', 'Titulo Arquivo XML', 'Numero do esboço', 'Enviado SAP',
-  'Data conexão escola teste', 'Motivo da reprovação', 'ID Sisop',
+/**
+ * As trinta colunas do relatório, cada uma declarada uma vez: o nome que vai
+ * para o cabeçalho, de onde o valor sai (`de`) e como se formata (`formato`).
+ * O cabeçalho do CSV e as chaves da linha derivam desta mesma lista, então não
+ * há como uma coluna existir num lado e não no outro — divergir dava coluna
+ * vazia em silêncio, que é como o bug do valor da nota fiscal passou.
+ *
+ * `de` recebe o contexto da linha: a FR, o item, a OSP, a escola, o fornecedor
+ * e o número definitivo da OSP já resolvido. É essa coluna da esquerda que se
+ * confere contra a tela do SISOP.
+ */
+const COLUNAS_DEF = [
+  { nome: 'Projeto', de: ({ escola, fr }) => escola.INEP ?? fr.INEP },
+  { nome: 'Cod Fornecedor', de: ({ fornecedor }) => fornecedor.cod_aniel },
+  { nome: 'Fornecedor', de: ({ fornecedor }) => fornecedor['Nome Fantasia'] },
+  { nome: 'CNPJ', de: ({ fornecedor }) => fornecedor.CNPJ },
+  // Só o número definitivo do portal; provisório fica em Num provisorio.
+  { nome: 'Num OSP', de: ({ numOsp }) => numOsp },
+  { nome: 'Num Obra', de: ({ item, fr }) => item?.['Numero da obra'] ?? fr.Tipo },
+  { nome: 'Descrição Item', de: ({ item }) => item?.['Descrição'] },
+  { nome: 'Qnt Produto', de: ({ item }) => item?.Quantidade },
+  { nome: 'Valor unite ur', de: ({ item }) => item?.['Valor Unitário'], formato: moeda },
+  { nome: 'Valor Produto', de: ({ item }) => item?.['Valor Total'], formato: decimal },
+  { nome: 'Prod serv', de: ({ item }) => item?.['produto/serviço'] },
+  {
+    nome: 'Previsão de execução',
+    de: ({ item, osp }) => item?.['Previsão de execução'] ?? osp['Previsão de entrega'],
+    formato: data,
+  },
+  { nome: 'Num provisorio', de: ({ osp, item }) => osp.num_prov ?? item?.['Num Provisório'] },
+  // A OSP só ganha número definitivo depois de aprovada; antes vale o provisório.
+  { nome: 'Validação OSP', de: ({ numOsp }) => (numOsp ? 'Aprovado' : 'Provisório') },
+  { nome: 'Status OSP', de: ({ osp }) => osp.status },
+  { nome: 'Status escola', de: ({ escola }) => escola['Status Geral'] },
+  { nome: 'Status NF Sisop', de: ({ fr }) => fr.status },
+  { nome: 'Num NF', de: ({ fr }) => fr.NotaFiscal_numero },
+  // Mesma fonte da tela do SISOP: o 'Valor Total' do item, não o campo da FR.
+  // É o mesmo número de 'Valor Produto', só que com separador de milhar.
+  { nome: 'Valor da NF', de: ({ item }) => item?.['Valor Total'], formato: moeda },
+  { nome: 'Fase', de: ({ escola }) => escola.FASE },
+  { nome: 'Data envio SAP', de: ({ fr }) => fr['enviado data sap'], formato: data },
+  { nome: 'Data Nota Anexada', de: ({ fr }) => fr['Data envio nota 1'], formato: data },
+  {
+    nome: 'Data previsão de pagamnto',
+    de: ({ fr, item }) => fr['data prevista para pagamento'] ?? item?.pago_em,
+    formato: data,
+  },
+  { nome: 'Titulo Aquivo NF', de: ({ fr }) => fr['Nota fiscal'], formato: nomeArquivo },
+  { nome: 'Titulo Arquivo XML', de: ({ fr }) => fr.XML, formato: nomeArquivo },
+  { nome: 'Numero do esboço', de: ({ fr }) => fr.Id_SAP_nota_draft },
+  { nome: 'Enviado SAP', de: ({ fr }) => fr['Enviado para SAP'], formato: simNao },
+  { nome: 'Data conexão escola teste', de: ({ escola }) => escola['Ativação GERAL'], formato: data },
+  { nome: 'Motivo da reprovação', de: ({ fr }) => fr.Recusa_texto },
+  { nome: 'ID Sisop', de: ({ fr }) => fr._id },
 ];
 
+/** Formato padrão: o valor como veio, e célula vazia quando não veio nada. */
+const comoEsta = (v) => v ?? '';
+
+/** Cabeçalho do CSV e chaves da linha, na ordem da declaração. */
+export const COLUNAS = COLUNAS_DEF.map((c) => c.nome);
 // As tabelas cruas ficam em disco entre execuções; um teste passa outro
 // adapter de cache em `carregarDados`.
 const disco = cacheEmDisco();
@@ -77,50 +128,18 @@ export function gerarLinhas(dados) {
     const osp = ospPorFr.get(fr._id) ?? ospPorId.get(fr.OSP) ?? {};
     const escola = escolaPorId.get(item?.escola ?? fr.Escola) ?? {};
     const fornecedor = fornecedorPorId.get(item?.Fornecedor ?? osp.Fornecedor) ?? {};
-    // Só o número definitivo do portal; provisório fica em Num provisorio.
-    const numOsp = osp.OSnum ?? '';
+    const contexto = { fr, item, osp, escola, fornecedor, numOsp: osp.OSnum ?? '' };
 
-    const linha = {
-      'Projeto': escola.INEP ?? fr.INEP ?? '',
-      'Cod Fornecedor': fornecedor.cod_aniel ?? '',
-      'Fornecedor': fornecedor['Nome Fantasia'] ?? '',
-      'CNPJ': fornecedor.CNPJ ?? '',
-      'Num OSP': numOsp,
-      'Num Obra': item?.['Numero da obra'] ?? fr.Tipo ?? '',
-      'Descrição Item': item?.['Descrição'] ?? '',
-      'Qnt Produto': item?.Quantidade ?? '',
-      'Valor unite ur': moeda(item?.['Valor Unitário']),
-      'Valor Produto': decimal(item?.['Valor Total']),
-      'Prod serv': item?.['produto/serviço'] ?? '',
-      'Previsão de execução': data(item?.['Previsão de execução'] ?? osp['Previsão de entrega']),
-      'Num provisorio': osp.num_prov ?? item?.['Num Provisório'] ?? '',
-      // A OSP só ganha número definitivo depois de aprovada; antes vale o provisório.
-      'Validação OSP': numOsp ? 'Aprovado' : 'Provisório',
-      'Status OSP': osp.status ?? '',
-      'Status escola': escola['Status Geral'] ?? '',
-      'Status NF Sisop': fr.status ?? '',
-      'Num NF': fr.NotaFiscal_numero ?? '',
-      // Mesma fonte da tela do SISOP: o 'Valor Total' do item, não o campo da FR.
-      // É o mesmo número de 'Valor Produto', só que com separador de milhar.
-      'Valor da NF': moeda(item?.['Valor Total']),
-      'Fase': escola.FASE ?? '',
-      'Data envio SAP': data(fr['enviado data sap']),
-      'Data Nota Anexada': data(fr['Data envio nota 1']),
-      'Data previsão de pagamnto': data(fr['data prevista para pagamento'] ?? item?.pago_em),
-      'Titulo Aquivo NF': nomeArquivo(fr['Nota fiscal']),
-      'Titulo Arquivo XML': nomeArquivo(fr.XML),
-      'Numero do esboço': fr.Id_SAP_nota_draft ?? '',
-      'Enviado SAP': simNao(fr['Enviado para SAP']),
-      'Data conexão escola teste': data(escola['Ativação GERAL']),
-      'Motivo da reprovação': fr.Recusa_texto ?? '',
-      'ID Sisop': fr._id,
-      // Só para não quebrar quem já consome a resposta json com esses campos.
-      // Os filtros não os leem mais — quem lê é o índice acima. Quando der para
-      // confirmar que ninguém depende deles, estas três linhas saem sozinhas.
-      _fornecedorId: fornecedor._id ?? '',
-      _ospId: osp._id ?? '',
-      _escolaId: escola._id ?? '',
-    };
+    const linha = {};
+    for (const { nome, de, formato = comoEsta } of COLUNAS_DEF) {
+      linha[nome] = formato(de(contexto));
+    }
+    // Só para não quebrar quem já consome a resposta json com esses campos.
+    // Os filtros não os leem mais — quem lê é o índice abaixo. Quando der para
+    // confirmar que ninguém depende deles, estas três linhas saem sozinhas.
+    linha._fornecedorId = fornecedor._id ?? '';
+    linha._ospId = osp._id ?? '';
+    linha._escolaId = escola._id ?? '';
 
     idsPorLinha.set(linha, {
       fornecedorId: fornecedor._id ?? '',

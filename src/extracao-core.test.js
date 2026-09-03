@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { gerarLinhas, filtrar, idsDe } from './extracao-core.js';
+import { COLUNAS, gerarLinhas, filtrar, idsDe } from './extracao-core.js';
 
 const fornId = '100x1';
 const ospProvId = '200x1';
@@ -182,5 +182,20 @@ describe('índice de ids', () => {
   it('expõe os ids de cada linha sem eles atravessarem a linha', () => {
     const linha = gerarLinhas(dadosBase()).find((l) => l['ID Sisop'] === frProvId);
     assert.deepEqual(idsDe(linha), { fornecedorId: fornId, ospId: ospProvId, escolaId: '' });
+  });
+});
+
+describe('colunas', () => {
+  it('cabeçalho e linha não podem divergir', () => {
+    for (const linha of gerarLinhas(dadosBase())) {
+      const doRelatorio = Object.keys(linha).filter((k) => !k.startsWith('_'));
+      assert.deepEqual(doRelatorio, COLUNAS);
+    }
+  });
+
+  it('são trinta, na ordem do relatório', () => {
+    assert.equal(COLUNAS.length, 30);
+    assert.equal(COLUNAS[0], 'Projeto');
+    assert.equal(COLUNAS.at(-1), 'ID Sisop');
   });
 });
