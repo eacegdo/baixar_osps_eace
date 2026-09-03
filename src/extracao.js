@@ -12,8 +12,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import path from 'node:path';
 import { criarClient } from './client.js';
-import { carregarDados, gerarLinhas, filtrar, particionar, csvChunks, csvCompleto } from './extracao-core.js';
-import { zipArquivos } from './zip.js';
+import { extrair } from './extracao-core.js';
 
 function parseArgs(argv) {
   const args = {};
@@ -38,44 +37,43 @@ const client = criarClient(versao);
 const inicio = Date.now();
 
 console.log(`Baixando tabelas (${versao})...`);
-const dados = await carregarDados(client, {
+const extracao = await extrair(client, {
   ttl,
   // --atualizar baixa do Bubble e regrava o cache; --sem-cache passa por fora dele.
   atualizar: Boolean(args.atualizar),
   onTabela: ({ tabela, registros, ms, doCache }) =>
     console.log(`  ${tabela}: ${registros} registros (${(ms / 1000).toFixed(1)}s${doCache ? ', cache' : ''})`),
-});
-
-let linhas = gerarLinhas(dados);
-linhas = filtrar(linhas, {
   fornecedor: args.fornecedor,
   fornecedorId: args['fornecedor-id'],
   status: args.status,
   numOsp: args.osp,
   ospId: args['osp-id'],
+  sep,
+  // O arquivo único vai para o Excel: leva BOM. Os do zip seguem sem, como no modelo.
+  bom: true,
+  maxLinhas,
 });
+const { linhas } = extracao;
+const segundos = () => ((Date.now() - inicio) / 1000).toFixed(1);
 
 if (args.unico) {
   const arquivo = args.unico === true ? 'extracao_osp.csv' : args.unico;
-  await pipeline(Readable.from(csvChunks(linhas, sep, true)), createWriteStream(arquivo));
-  console.log(`OK: ${linhas.length} linhas -> ${arquivo} (${((Date.now() - inicio) / 1000).toFixed(1)}s)`);
+  await pipeline(Readable.from(extracao.csvChunks()), createWriteStream(arquivo));
+  console.log(`OK: ${linhas.length} linhas -> ${arquivo} (${segundos()}s)`);
 } else {
-  const arquivos = particionar(linhas, maxLinhas);
+  const arquivos = extracao.arquivos();
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
-  await Promise.all(
-    arquivos.map((a) => writeFile(path.join(outDir, a.nome), csvCompleto(a.linhas, sep))),
-  );
+  await Promise.all(arquivos.map((a) => writeFile(path.join(outDir, a.nome), a.conteudo)));
 
   if (args.zip) {
     const destino = `${outDir}.zip`;
-    const conteudos = arquivos.map((a) => ({ nome: a.nome, conteudo: csvCompleto(a.linhas, sep) }));
-    await writeFile(destino, await zipArquivos(conteudos));
+    await writeFile(destino, await extracao.zip());
     console.log(`zip: ${destino}`);
   }
 
   const fornecedores = new Set(linhas.map((l) => l.Fornecedor || 'SEM_FORNECEDOR'));
   console.log(
-    `OK: ${linhas.length} linhas, ${fornecedores.size} fornecedores, ${arquivos.length} arquivos em ${outDir}/ (${((Date.now() - inicio) / 1000).toFixed(1)}s)`,
+    `OK: ${linhas.length} linhas, ${fornecedores.size} fornecedores, ${arquivos.length} arquivos em ${outDir}/ (${segundos()}s)`,
   );
 }

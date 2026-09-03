@@ -2,6 +2,7 @@
 // Uma linha por item de OSP, no formato do modelo: colunas humanizadas,
 // datas dd/mm/aaaa e valores pt-BR.
 import { cacheEmDisco } from './cache.js';
+import { zipArquivos } from './zip.js';
 import { headerRow, toRow } from './csv.js';
 import { data, moeda, decimal, simNao, nomeArquivo, nomeSeguro } from './formato.js';
 
@@ -245,4 +246,70 @@ export function* csvChunks(linhas, sep = ',', comBom = false) {
 
 export function csvCompleto(linhas, sep = ',', comBom = false) {
   return [...csvChunks(linhas, sep, comBom)].join('');
+}
+
+/**
+ * A extração inteira numa chamada: carrega as cinco tabelas, monta as linhas,
+ * aplica o recorte e devolve as saídas como métodos. A ordem dos passos é
+ * conhecimento deste módulo — o CLI e a rota HTTP são adapters, um cuidando de
+ * argumentos e arquivos em disco, o outro de querystring e resposta HTTP.
+ *
+ * @param {object} client cliente do Bubble
+ * @param {object} [opcoes]
+ * @param {number} [opcoes.ttl] validade do cache, em segundos; 0 busca dado
+ *   fresco sem gravar
+ * @param {boolean} [opcoes.atualizar] baixa do Bubble e regrava os caches
+ * @param {(info: object) => void} [opcoes.onTabela] progresso por tabela
+ * @param {import('./cache.js').Cache} [opcoes.cacheDeTabelas] onde as tabelas
+ *   cruas ficam guardadas; o padrão é o cache em disco
+ * @param {import('./cache.js').Cache} [opcoes.cacheDeLinhas] guarda as linhas
+ *   já montadas, antes do recorte; é o que faz pedidos concorrentes
+ *   compartilharem uma extração só
+ * @param {string} [opcoes.chaveDeLinhas] chave desse cache; o padrão é a
+ *   versão do app no Bubble, para live e test não se misturarem
+ */
+export async function extrair(client, {
+  ttl = 0,
+  atualizar = false,
+  onTabela,
+  cacheDeTabelas,
+  cacheDeLinhas,
+  chaveDeLinhas = client.versao ?? 'live',
+  // recorte
+  fornecedor, fornecedorId, status, numOsp, ospId,
+  // formato
+  sep = ',',
+  bom = false,
+  maxLinhas = 1500,
+} = {}) {
+  const produzir = () =>
+    carregarDados(client, { ttl, atualizar, onTabela, cache: cacheDeTabelas }).then(gerarLinhas);
+
+  const todas = cacheDeLinhas
+    ? (await cacheDeLinhas.obter(chaveDeLinhas, produzir, { ttl, atualizar })).dados
+    : await produzir();
+
+  const linhas = filtrar(todas, { fornecedor, fornecedorId, status, numOsp, ospId });
+
+  /**
+   * Um CSV por fornecedor, fatiado pelo máximo de linhas. Sem BOM: é o que vai
+   * para o zip. Montado uma vez só — quem quer a contagem de arquivos e o zip
+   * na mesma resposta não paga a montagem duas vezes.
+   */
+  let particionados;
+  const arquivos = () => (particionados ??= particionar(linhas, maxLinhas)
+    .map((a) => ({ nome: a.nome, conteudo: csvCompleto(a.linhas, sep) })));
+
+  return {
+    linhas,
+    colunas: COLUNAS,
+    arquivos,
+    /** O CSV inteiro, com BOM se pedido. */
+    csv: () => csvCompleto(linhas, sep, bom),
+    /** O mesmo CSV pedaço a pedaço, para ir direto para o disco ou para a resposta. */
+    csvChunks: () => csvChunks(linhas, sep, bom),
+    /** Os arquivos por fornecedor num zip em memória. */
+    zip: () => zipArquivos(arquivos()),
+    json: () => ({ linhas: linhas.length, colunas: COLUNAS, dados: linhas }),
+  };
 }

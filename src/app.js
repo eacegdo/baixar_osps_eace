@@ -7,8 +7,7 @@ import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { criarClient } from './client.js';
 import { cacheEmMemoria } from './cache.js';
-import { COLUNAS, carregarDados, gerarLinhas, filtrar, particionar, csvCompleto } from './extracao-core.js';
-import { zipArquivos } from './zip.js';
+import { extrair } from './extracao-core.js';
 import { nomeSeguro } from './formato.js';
 
 const carimbo = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '');
@@ -89,21 +88,11 @@ export async function criarApp({
    * pagam de novo a releitura do cache em disco (~225 MB de JSON) nem a montagem
    * das ~40 mil linhas. Uma entrada por versão: live e test não se misturam.
    *
-   * `atualizar` e `ttl` 0 significam aqui o mesmo que no cache em disco, e são
-   * repassados para lá: `atualizar` baixa do Bubble e regrava os dois, `ttl` 0
-   * busca dado fresco sem regravar nenhum.
+   * `atualizar` e `ttl` 0 significam aqui o mesmo que no cache em disco: o
+   * primeiro baixa do Bubble e regrava os dois, o segundo busca dado fresco sem
+   * regravar nenhum.
    */
   const memoria = cacheEmMemoria();
-
-  const extrair = async (ttl, atualizar, versao) => {
-    const { dados } = await memoria.obter(
-      versao,
-      () => carregarDados(clientDe(versao), { ttl, atualizar, cache: cacheDeTabelas })
-        .then(gerarLinhas),
-      { ttl, atualizar },
-    );
-    return dados;
-  };
 
   // -------------------------------------------------------------- extração
 
@@ -146,30 +135,34 @@ export async function criarApp({
       const nomeBase = arquivo
         ? nomeSeguro(arquivo.replace(/\.(csv|zip)$/i, ''))
         : `extracao_osp${versao === 'test' ? '-test' : ''}-${carimbo()}`;
-      reply.header('X-Bubble-Version', versao);
-      const linhas = filtrar(await extrair(ttl ?? cacheTtl, atualizar, versao), {
-        fornecedor, fornecedorId, status, numOsp: osp, ospId,
-      });
-      reply.header('X-Row-Count', String(linhas.length));
 
-      if (formato === 'json') return { linhas: linhas.length, colunas: COLUNAS, dados: linhas };
+      const extracao = await extrair(clientDe(versao), {
+        ttl: ttl ?? cacheTtl,
+        atualizar,
+        cacheDeTabelas,
+        cacheDeLinhas: memoria,
+        chaveDeLinhas: versao,
+        fornecedor, fornecedorId, status, numOsp: osp, ospId,
+        sep, bom, maxLinhas,
+      });
+
+      reply.header('X-Bubble-Version', versao);
+      reply.header('X-Row-Count', String(extracao.linhas.length));
+
+      if (formato === 'json') return extracao.json();
 
       if (formato === 'zip') {
-        const arquivos = particionar(linhas, maxLinhas).map((a) => ({
-          nome: a.nome,
-          conteudo: csvCompleto(a.linhas, sep),
-        }));
         return reply
           .header('Content-Type', 'application/zip')
           .header('Content-Disposition', `attachment; filename="${nomeBase}.zip"`)
-          .header('X-File-Count', String(arquivos.length))
-          .send(await zipArquivos(arquivos));
+          .header('X-File-Count', String(extracao.arquivos().length))
+          .send(await extracao.zip());
       }
 
       return reply
         .header('Content-Type', 'text/csv; charset=utf-8')
         .header('Content-Disposition', `attachment; filename="${nomeBase}.csv"`)
-        .send(csvCompleto(linhas, sep, bom));
+        .send(extracao.csv());
     },
   );
 
