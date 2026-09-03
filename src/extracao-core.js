@@ -45,6 +45,19 @@ export async function carregarDados(client, { ttl = 0, atualizar = false, onTabe
 
 const porId = (registros) => new Map(registros.map((r) => [r._id, r]));
 
+/**
+ * Índice dos unique ids do Bubble, por linha. Os ids servem só aos filtros, e
+ * ficam aqui em vez de dentro da linha: a linha carrega as colunas do
+ * relatório, e quem filtra consulta o índice.
+ *
+ * Ele é fraco de propósito — a entrada morre junto com a linha, então o cache
+ * de linhas em memória não vira vazamento.
+ */
+const idsPorLinha = new WeakMap();
+
+/** @returns {{fornecedorId: string, ospId: string, escolaId: string}} */
+export const idsDe = (linha) => idsPorLinha.get(linha) ?? {};
+
 /** Monta as linhas da extração a partir das tabelas cruas. */
 export function gerarLinhas(dados) {
   const frs = dados.FR_OSP;
@@ -67,7 +80,7 @@ export function gerarLinhas(dados) {
     // Só o número definitivo do portal; provisório fica em Num provisorio.
     const numOsp = osp.OSnum ?? '';
 
-    return {
+    const linha = {
       'Projeto': escola.INEP ?? fr.INEP ?? '',
       'Cod Fornecedor': fornecedor.cod_aniel ?? '',
       'Fornecedor': fornecedor['Nome Fantasia'] ?? '',
@@ -101,11 +114,20 @@ export function gerarLinhas(dados) {
       'Data conexão escola teste': data(escola['Ativação GERAL']),
       'Motivo da reprovação': fr.Recusa_texto ?? '',
       'ID Sisop': fr._id,
-      // Ids do Bubble para os filtros; não saem no CSV, que usa COLUNAS.
+      // Só para não quebrar quem já consome a resposta json com esses campos.
+      // Os filtros não os leem mais — quem lê é o índice acima. Quando der para
+      // confirmar que ninguém depende deles, estas três linhas saem sozinhas.
       _fornecedorId: fornecedor._id ?? '',
       _ospId: osp._id ?? '',
       _escolaId: escola._id ?? '',
     };
+
+    idsPorLinha.set(linha, {
+      fornecedorId: fornecedor._id ?? '',
+      ospId: osp._id ?? '',
+      escolaId: escola._id ?? '',
+    });
+    return linha;
   };
 
   // Uma linha por item da FR; FR sem item vira uma linha só, para não sumir do relatório.
@@ -137,20 +159,20 @@ const igual = (a, b) => String(a ?? '').toLowerCase() === String(b ?? '').toLowe
 export function filtrar(linhas, { fornecedor, fornecedorId, status, numOsp, ospId } = {}) {
   const testes = [];
 
-  if (!todos(fornecedorId)) testes.push((l) => l._fornecedorId === fornecedorId);
-  if (!todos(ospId)) testes.push((l) => l._ospId === ospId);
+  if (!todos(fornecedorId)) testes.push((l) => idsDe(l).fornecedorId === fornecedorId);
+  if (!todos(ospId)) testes.push((l) => idsDe(l).ospId === ospId);
 
   if (!todos(fornecedor)) {
     testes.push(
       ehIdBubble(fornecedor)
-        ? (l) => l._fornecedorId === fornecedor
+        ? (l) => idsDe(l).fornecedorId === fornecedor
         : (l) => igual(l.Fornecedor, fornecedor),
     );
   }
   if (!todos(numOsp)) {
     testes.push(
       ehIdBubble(numOsp)
-        ? (l) => l._ospId === numOsp
+        ? (l) => idsDe(l).ospId === numOsp
         // Aceita número definitivo ou provisório (FR ainda sem OSnum no portal).
         : (l) => String(l['Num OSP']) === String(numOsp)
           || String(l['Num provisorio']) === String(numOsp),

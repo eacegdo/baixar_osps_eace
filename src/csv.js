@@ -1,24 +1,3 @@
-// Bubble's built-in fields; they lead the header when present.
-const PREFERRED_FIRST = ['_id', 'Created Date', 'Modified Date', 'Created By', 'Slug'];
-
-/**
- * Union of every key seen across records: built-in Bubble fields first, then
- * the custom fields sorted alphabetically. Bubble omits empty fields per
- * record, so the full column set is only known once every page is in.
- */
-export function columns(records) {
-  const seen = new Set();
-  for (const record of records) {
-    for (const key of Object.keys(record)) seen.add(key);
-  }
-
-  const cols = [];
-  for (const key of PREFERRED_FIRST) {
-    if (seen.delete(key)) cols.push(key);
-  }
-  return cols.concat([...seen].sort((a, b) => a.localeCompare(b)));
-}
-
 /**
  * Quebra de linha dentro de uma célula vira espaço. O escape RFC 4180 já daria
  * conta dela (a célula sai entre aspas), mas quem lê o arquivo sem respeitar as

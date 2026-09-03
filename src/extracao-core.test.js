@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { gerarLinhas, filtrar } from './extracao-core.js';
+import { gerarLinhas, filtrar, idsDe } from './extracao-core.js';
 
 const fornId = '100x1';
 const ospProvId = '200x1';
@@ -161,5 +161,26 @@ describe('Valor da NF', () => {
     dados.FR_OSP[0]['lista de contratos_instalação'] = [];
     const l = gerarLinhas(dados).find((x) => x['ID Sisop'] === frProvId);
     assert.equal(l['Valor da NF'], '');
+  });
+});
+
+describe('índice de ids', () => {
+  it('os filtros por id não dependem dos campos da linha', () => {
+    const linhas = gerarLinhas(dadosBase());
+    // Apaga os campos de compatibilidade: quem filtra é o índice interno.
+    for (const l of linhas) {
+      delete l._fornecedorId;
+      delete l._ospId;
+      delete l._escolaId;
+    }
+    assert.equal(filtrar(linhas, { ospId: ospProvId }).length, 1);
+    assert.equal(filtrar(linhas, { fornecedorId: fornId }).length, 2);
+    assert.equal(filtrar(linhas, { fornecedor: fornId }).length, 2);
+    assert.equal(filtrar(linhas, { numOsp: ospProvId }).length, 1);
+  });
+
+  it('expõe os ids de cada linha sem eles atravessarem a linha', () => {
+    const linha = gerarLinhas(dadosBase()).find((l) => l['ID Sisop'] === frProvId);
+    assert.deepEqual(idsDe(linha), { fornecedorId: fornId, ospId: ospProvId, escolaId: '' });
   });
 });
