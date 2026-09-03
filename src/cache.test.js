@@ -151,3 +151,45 @@ describe('cache em memória — concorrência', () => {
     assert.equal(tentativas, 2);
   });
 });
+
+describe('cache em memória — janela em voo', () => {
+  it('uma produção travada deixa de ser reaproveitada depois do teto', async () => {
+    // Teto zero: a entrada já nasce vencida, como se a produção tivesse travado
+    // por mais tempo que a janela.
+    const cache = cacheEmMemoria({ limiteEmVooMs: 0 });
+    let chamadas = 0;
+    const travar = () => {
+      chamadas += 1;
+      return new Promise(() => {}); // nunca resolve
+    };
+
+    const presa = cache.obter('live', travar, { ttl: 60 });
+    const segunda = cache.obter('live', travar, { ttl: 60 });
+    // A segunda não herdou a produção travada: começou outra.
+    assert.equal(chamadas, 2);
+
+    // Nenhuma das duas resolve, e é isso: o que importa é não prender a fila.
+    const naoResolveu = Symbol('pendente');
+    const corrida = await Promise.race([
+      Promise.all([presa, segunda]),
+      Promise.resolve(naoResolveu),
+    ]);
+    assert.equal(corrida, naoResolveu);
+  });
+
+  it('dentro do teto, a chamada concorrente ainda se junta', async () => {
+    const cache = cacheEmMemoria({ limiteEmVooMs: 300_000 });
+    let chamadas = 0;
+    let liberar;
+    const produzir = () => {
+      chamadas += 1;
+      return new Promise((resolve) => { liberar = () => resolve('linhas'); });
+    };
+
+    const a = cache.obter('live', produzir, { ttl: 60 });
+    const b = cache.obter('live', produzir, { ttl: 60 });
+    liberar();
+    await Promise.all([a, b]);
+    assert.equal(chamadas, 1);
+  });
+});

@@ -58,35 +58,36 @@ export function cacheEmDisco({ dir = process.env.CACHE_DIR ?? '.cache' } = {}) {
  * compartilharem uma produção só: dois cliques no botão não baixam as cinco
  * tabelas duas vezes.
  *
+ * @param {object} [opcoes]
+ * @param {number} [opcoes.limiteEmVooMs] teto da janela em que uma produção
+ *   ainda não terminada é reaproveitada. É o que impede uma extração travada de
+ *   prender todas as chamadas seguintes: passado o teto, a próxima começa outra.
  * @returns {Cache}
  */
-export function cacheEmMemoria() {
+export function cacheEmMemoria({ limiteEmVooMs = 300_000 } = {}) {
   const entradas = new Map();
 
   return {
     async obter(chave, produzir, { ttl = 0, atualizar = false } = {}) {
       const guardada = entradas.get(chave);
-      // Enquanto a produção corre a entrada vale, para as chamadas concorrentes
-      // se juntarem a ela; depois vale até `expiraEm`.
-      const vale = guardada && (guardada.emVoo || Date.now() < guardada.expiraEm);
-      if (vale && !atualizar && ttl > 0) {
+      if (guardada && !atualizar && ttl > 0 && Date.now() < guardada.expiraEm) {
         return { dados: await guardada.promessa, doCache: true };
       }
 
-      const entrada = { emVoo: true, expiraEm: 0, promessa: produzir() };
+      const entrada = {
+        // Enquanto a produção corre, a validade cobre só a janela em voo, para
+        // as chamadas concorrentes se juntarem a ela; ao terminar vale o ttl
+        // cheio. Uma produção que trava expira junto com a janela.
+        expiraEm: Date.now() + limiteEmVooMs,
+        promessa: produzir(),
+      };
       // `ttl` 0 não grava: a produção corre solta e nada substitui o que já
       // está guardado.
       if (ttl > 0) entradas.set(chave, entrada);
 
       entrada.promessa.then(
-        () => {
-          entrada.emVoo = false;
-          entrada.expiraEm = Date.now() + ttl * 1000;
-        },
-        () => {
-          entrada.emVoo = false;
-          if (entradas.get(chave) === entrada) entradas.delete(chave);
-        },
+        () => { entrada.expiraEm = Date.now() + ttl * 1000; },
+        () => { if (entradas.get(chave) === entrada) entradas.delete(chave); },
       );
 
       return { dados: await entrada.promessa, doCache: false };
