@@ -377,15 +377,18 @@ Gere com `;`: `npm run extracao -- --zip --sep ';'`.
 ```
 src/
   extracao.js        comando do terminal
-  server.js          API HTTP
-  extracao-core.js   regra da extração: junta as tabelas e monta as linhas
+  server.js          sobe a API na porta
+  app.js             rotas da API (monta sem escutar, para os testes)
+  extracao-core.js   regra da extração: colunas, junção das tabelas e as saídas
   bubble.js          conversa com a API do Bubble (paginação)
   formato.js         datas e valores em português
   csv.js             escrita de CSV
-  cache.js           cópia local das tabelas
+  cache.js           cópia local das tabelas (disco) e linhas prontas (memória)
   pool.js            limita quantas buscas rodam ao mesmo tempo
   zip.js             empacota os CSVs
   client.js          cria o cliente do Bubble com as credenciais do .env
+  dados-falsos.js    tabelas de mentira, usadas só pelos testes
+  *.test.js          testes; rode com npm test
 Dockerfile           imagem da API
 docker-compose.yml   sobe a API com o cache em volume
 ```
