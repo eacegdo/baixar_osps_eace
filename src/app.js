@@ -6,6 +6,7 @@ import Fastify from 'fastify';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { criarClient } from './client.js';
+import { cacheEmMemoria } from './cache.js';
 import { COLUNAS, carregarDados, gerarLinhas, filtrar, particionar, csvCompleto } from './extracao-core.js';
 import { zipArquivos } from './zip.js';
 import { nomeSeguro } from './formato.js';
@@ -30,12 +31,15 @@ export function clientsPorVersao(criar = criarClient) {
  * @param {number} [opcoes.cacheTtl] validade padrão do cache, em segundos
  * @param {(versao: string) => object} [opcoes.clientDe] fonte de dados; em
  *   produção são os clientes do Bubble, num teste são tabelas falsas
+ * @param {import('./cache.js').Cache} [opcoes.cacheDeTabelas] onde as tabelas
+ *   cruas ficam guardadas; o padrão é o cache em disco
  * @param {boolean|object} [opcoes.logger] logger do Fastify
  */
 export async function criarApp({
   apiKey = process.env.API_KEY,
   cacheTtl = Number(process.env.CACHE_TTL ?? 900),
   clientDe = clientsPorVersao(),
+  cacheDeTabelas,
   logger = true,
 } = {}) {
   const app = Fastify({ logger });
@@ -84,32 +88,22 @@ export async function criarApp({
    * no botão não baixam as cinco tabelas duas vezes) e requisições seguidas não
    * pagam de novo a releitura do cache em disco (~225 MB de JSON) nem a montagem
    * das ~40 mil linhas. Uma entrada por versão: live e test não se misturam.
+   *
+   * `atualizar` e `ttl` 0 significam aqui o mesmo que no cache em disco, e são
+   * repassados para lá: `atualizar` baixa do Bubble e regrava os dois, `ttl` 0
+   * busca dado fresco sem regravar nenhum.
    */
-  const memoria = new Map();
+  const memoria = cacheEmMemoria();
 
-  /**
-   * `atualizar` ignora o que está guardado (memória e disco), baixa do Bubble e
-   * regrava os dois — é o botão "atualizar". `ttl` 0 passa por fora do cache sem
-   * regravar nada, para um dado avulso que não deve virar o novo estado.
-   */
-  async function extrair(ttl, atualizar, versao) {
-    const guardada = memoria.get(versao);
-    if (guardada && !atualizar && ttl > 0 && Date.now() < guardada.expiraEm) return guardada.promessa;
-
-    const entrada = {
-      // Enquanto a extração corre, a validade cobre só o tempo dela, para as
-      // requisições concorrentes se juntarem; ao terminar vale o ttl cheio.
-      expiraEm: Date.now() + 300_000,
-      promessa: carregarDados(clientDe(versao), { ttl, atualizar }).then(gerarLinhas),
-    };
-    memoria.set(versao, entrada);
-
-    entrada.promessa.then(
-      () => { entrada.expiraEm = Date.now() + ttl * 1000; },
-      () => { if (memoria.get(versao) === entrada) memoria.delete(versao); },
+  const extrair = async (ttl, atualizar, versao) => {
+    const { dados } = await memoria.obter(
+      versao,
+      () => carregarDados(clientDe(versao), { ttl, atualizar, cache: cacheDeTabelas })
+        .then(gerarLinhas),
+      { ttl, atualizar },
     );
-    return entrada.promessa;
-  }
+    return dados;
+  };
 
   // -------------------------------------------------------------- extração
 

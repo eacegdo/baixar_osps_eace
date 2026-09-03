@@ -1,7 +1,7 @@
 // Núcleo da "Extração completa OSP", usado pelo CLI e pela API.
 // Uma linha por item de OSP, no formato do modelo: colunas humanizadas,
 // datas dd/mm/aaaa e valores pt-BR.
-import { comCache } from './cache.js';
+import { cacheEmDisco } from './cache.js';
 import { headerRow, toRow } from './csv.js';
 import { data, moeda, decimal, simNao, nomeArquivo, nomeSeguro } from './formato.js';
 
@@ -15,21 +15,26 @@ export const COLUNAS = [
   'Data conexão escola teste', 'Motivo da reprovação', 'ID Sisop',
 ];
 
+// As tabelas cruas ficam em disco entre execuções; um teste passa outro
+// adapter de cache em `carregarDados`.
+const disco = cacheEmDisco();
+
 const TABELAS = ['FR_OSP', 'contrato_taxa_instalacao', 'OSP', 'Escolas', 'fornecedor'];
 
 /**
  * Baixa as cinco tabelas em paralelo. O cliente já limita as requisições em voo
  * globalmente, então disparar tudo de uma vez não sobrecarrega o Bubble.
  */
-export async function carregarDados(client, { ttl = 0, atualizar = false, onTabela } = {}) {
+export async function carregarDados(client, { ttl = 0, atualizar = false, onTabela, cache } = {}) {
   const entradas = await Promise.all(
     TABELAS.map(async (tabela) => {
       const inicio = Date.now();
       // A versão entra na chave para o cache da test não se passar pelo da live.
       // A live fica sem prefixo, para os arquivos já gravados continuarem valendo.
       const chave = client.versao === 'test' ? `test_${tabela}` : tabela;
-      const { dados, doCache } = await comCache(chave, ttl, () => client.fetchAll(tabela), {
-        ignorar: atualizar,
+      const { dados, doCache } = await (cache ?? disco).obter(chave, () => client.fetchAll(tabela), {
+        ttl,
+        atualizar,
       });
       onTabela?.({ tabela, registros: dados.length, ms: Date.now() - inicio, doCache });
       return [tabela, dados];

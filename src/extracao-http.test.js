@@ -4,17 +4,19 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { unzipSync, strFromU8 } from 'fflate';
 import { criarApp } from './app.js';
+import { cacheEmMemoria } from './cache.js';
 import { COLUNAS } from './extracao-core.js';
 import { clientFalso, tabelasFalsas, FORN_NUH, OSP_PROV } from './dados-falsos.js';
 
 const BOM = '﻿';
 
-/** App com a fonte de dados falsa e sem cache, para nada tocar disco nem rede. */
+/** App com a fonte de dados falsa e sem disco, para nada tocar rede nem arquivo. */
 const app = ({ tabelas } = {}) =>
   criarApp({
     apiKey: undefined,
     cacheTtl: 0,
     logger: false,
+    cacheDeTabelas: cacheEmMemoria(),
     clientDe: (versao) => clientFalso({ versao, tabelas: tabelas ?? tabelasFalsas() }),
   });
 
@@ -186,5 +188,94 @@ describe('validação da querystring', () => {
   it('formato desconhecido responde 400', async () => {
     const res = await pedir('formato=xlsx&ttl=0');
     assert.equal(res.statusCode, 400);
+  });
+});
+
+describe('cache da rota', () => {
+  /** App com cache ligado e um cliente só, para contar as idas ao Bubble. */
+  const comCacheLigado = async () => {
+    const client = clientFalso();
+    const instancia = await criarApp({
+      apiKey: undefined,
+      cacheTtl: 60,
+      logger: false,
+      cacheDeTabelas: cacheEmMemoria(),
+      clientDe: () => client,
+    });
+    return { instancia, client };
+  };
+
+  it('dois pedidos simultâneos baixam as tabelas uma vez só', async () => {
+    const { instancia, client } = await comCacheLigado();
+    try {
+      const [a, b] = await Promise.all([
+        instancia.inject({ method: 'GET', url: '/extracao?formato=json' }),
+        instancia.inject({ method: 'GET', url: '/extracao?formato=json&fornecedor=BRISANET' }),
+      ]);
+      assert.equal(a.json().linhas, 4);
+      assert.equal(b.json().linhas, 2);
+      // Cinco tabelas, uma vez cada.
+      assert.equal(client.chamadas.length, 5);
+    } finally {
+      await instancia.close();
+    }
+  });
+
+  it('o pedido seguinte reaproveita as linhas guardadas', async () => {
+    const { instancia, client } = await comCacheLigado();
+    try {
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json' });
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=csv' });
+      assert.equal(client.chamadas.length, 5);
+    } finally {
+      await instancia.close();
+    }
+  });
+
+  it('ttl 0 busca dado fresco sem descartar o que está guardado', async () => {
+    const { instancia, client } = await comCacheLigado();
+    try {
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json' });
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json&ttl=0' });
+      assert.equal(client.chamadas.length, 10);
+
+      // O pedido avulso não substituiu nada: este ainda vem do cache.
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json' });
+      assert.equal(client.chamadas.length, 10);
+    } finally {
+      await instancia.close();
+    }
+  });
+
+  it('atualizar baixa de novo e regrava', async () => {
+    const { instancia, client } = await comCacheLigado();
+    try {
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json' });
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json&atualizar=true' });
+      assert.equal(client.chamadas.length, 10);
+
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json' });
+      assert.equal(client.chamadas.length, 10);
+    } finally {
+      await instancia.close();
+    }
+  });
+
+  it('live e test não compartilham entrada', async () => {
+    const client = clientFalso();
+    const instancia = await criarApp({
+      apiKey: undefined,
+      cacheTtl: 60,
+      logger: false,
+      cacheDeTabelas: cacheEmMemoria(),
+      clientDe: (versao) => ({ ...client, versao }),
+    });
+    try {
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json&versao=live' });
+      await instancia.inject({ method: 'GET', url: '/extracao?formato=json&versao=test' });
+      assert.equal(client.chamadas.length, 10);
+    } finally {
+      await instancia.close();
+    }
   });
 });

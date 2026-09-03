@@ -3,11 +3,18 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { criarApp } from './app.js';
+import { cacheEmMemoria } from './cache.js';
 import { clientFalso } from './dados-falsos.js';
 
-/** App com a fonte de dados falsa e sem cache, para nada tocar disco nem rede. */
+/** App com a fonte de dados falsa e sem disco, para nada tocar rede nem arquivo. */
 const app = ({ apiKey } = {}) =>
-  criarApp({ apiKey, cacheTtl: 0, logger: false, clientDe: () => clientFalso() });
+  criarApp({
+    apiKey,
+    cacheTtl: 0,
+    logger: false,
+    cacheDeTabelas: cacheEmMemoria(),
+    clientDe: () => clientFalso(),
+  });
 
 describe('montar o app', () => {
   it('não escuta em porta nenhuma', async () => {
