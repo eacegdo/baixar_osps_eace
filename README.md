@@ -330,15 +330,17 @@ A planilha junta cinco tabelas do Bubble. Cada linha é **um item de uma OSP**.
 | Projeto, Fase, Status escola, Data conexão escola teste | `Escolas` |
 | Fornecedor, Cod Fornecedor, CNPJ | `fornecedor` |
 | Num OSP, Num provisorio, Status OSP, Previsão de execução | `OSP` |
-| Descrição Item, Qnt Produto, Valor unite ur, Valor Produto, Prod serv | `contrato_taxa_instalacao` |
-| Num NF, Valor da NF, Status NF Sisop, datas de SAP/nota, títulos de arquivo, Motivo da reprovação, ID Sisop | `FR_OSP` |
+| Descrição Item, Qnt Produto, Valor unite ur, Valor Produto, Valor da NF, Prod serv | `contrato_taxa_instalacao` |
+| Num NF, Status NF Sisop, datas de SAP/nota, títulos de arquivo, Motivo da reprovação, ID Sisop | `FR_OSP` |
 
 Duas regras que não são cópia direta de campo:
 
 - **Validação OSP**: `Aprovado` quando a OSP já tem número definitivo,
   `Provisório` enquanto só tem número provisório.
-- **Valor da NF**: usa `Valor da nota`; quando ele está vazio (notas antigas),
-  cai pra `Valor total`.
+- **Valor da NF**: é o `Valor Total` do item, mesma fonte da tela do SISOP.
+  Dá o mesmo número de `Valor Produto`, só que com separador de milhar
+  (`14.579,25` em vez de `14579,25`). Os campos `Valor da nota` e `Valor total`
+  da `FR_OSP` não são usados: vivem desatualizados ou zerados no Bubble.
 
 ---
 

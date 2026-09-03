@@ -82,8 +82,9 @@ export function gerarLinhas(dados) {
       'Status escola': escola['Status Geral'] ?? '',
       'Status NF Sisop': fr.status ?? '',
       'Num NF': fr.NotaFiscal_numero ?? '',
-      // Notas antigas gravaram o valor só em 'Valor total'.
-      'Valor da NF': moeda(fr['Valor da nota'] ?? fr['Valor total']),
+      // Mesma fonte da tela do SISOP: o 'Valor Total' do item, não o campo da FR.
+      // É o mesmo número de 'Valor Produto', só que com separador de milhar.
+      'Valor da NF': moeda(item?.['Valor Total']),
       'Fase': escola.FASE ?? '',
       'Data envio SAP': data(fr['enviado data sap']),
       'Data Nota Anexada': data(fr['Data envio nota 1']),

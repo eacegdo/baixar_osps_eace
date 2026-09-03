@@ -133,3 +133,33 @@ describe('filtrar — número definitivo ou provisório', () => {
     assert.equal(achadas[0]['ID Sisop'], frAprovId);
   });
 });
+
+describe('Valor da NF', () => {
+  it("usa o 'Valor Total' do item, como a tela do SISOP", () => {
+    const l = gerarLinhas(dadosBase()).find((x) => x['ID Sisop'] === frAprovId);
+    assert.equal(l['Valor da NF'], '200,00');
+  });
+
+  it("ignora os campos de valor da própria FR", () => {
+    const dados = dadosBase();
+    dados.FR_OSP[0]['Valor da nota'] = 99999;
+    dados.FR_OSP[0]['Valor total'] = 88888;
+    const l = gerarLinhas(dados).find((x) => x['ID Sisop'] === frProvId);
+    assert.equal(l['Valor da NF'], '100,00');
+  });
+
+  it('mesmo número de Valor Produto, com separador de milhar', () => {
+    const dados = dadosBase();
+    dados.contrato_taxa_instalacao[0]['Valor Total'] = 14579.25;
+    const l = gerarLinhas(dados).find((x) => x['ID Sisop'] === frProvId);
+    assert.equal(l['Valor Produto'], '14579,25');
+    assert.equal(l['Valor da NF'], '14.579,25');
+  });
+
+  it('FR sem item fica vazia', () => {
+    const dados = dadosBase();
+    dados.FR_OSP[0]['lista de contratos_instalação'] = [];
+    const l = gerarLinhas(dados).find((x) => x['ID Sisop'] === frProvId);
+    assert.equal(l['Valor da NF'], '');
+  });
+});
