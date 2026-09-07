@@ -109,6 +109,7 @@ export async function criarApp({
           type: 'object',
           properties: {
             formato: { type: 'string', enum: ['csv', 'zip', 'json'], default: 'csv', description: 'Formato da resposta' },
+            mes: { type: 'string', description: 'Competência mensal: "atual" ou "YYYY-MM" (ex: 2026-09). Busca apenas folhas do mês e escolas conectadas no mês. Se omitido, faz a extração completa.' },
             fornecedor: { type: 'string', description: 'Nome do fornecedor ou o unique id dele. * (ou vazio) traz todos' },
             fornecedor_id: { type: 'string', description: 'Unique id do fornecedor no Bubble (ex.: 1774638667943x152870812523466340)' },
             osp_id: { type: 'string', description: 'Unique id da OSP no Bubble' },
@@ -127,7 +128,7 @@ export async function criarApp({
     },
     async (request, reply) => {
       const {
-        formato, sep, bom, linhas: maxLinhas, ttl, atualizar, arquivo, versao,
+        mes, formato, sep, bom, linhas: maxLinhas, ttl, atualizar, arquivo, versao,
         fornecedor, fornecedor_id: fornecedorId, status, osp, osp_id: ospId,
       } = request.query;
       // O nome vem do cliente e vai para um header: passa pelo nomeSeguro para
@@ -137,11 +138,12 @@ export async function criarApp({
         : `extracao_osp${versao === 'test' ? '-test' : ''}-${carimbo()}`;
 
       const extracao = await extrair(clientDe(versao), {
+        mes,
         ttl: ttl ?? cacheTtl,
         atualizar,
         cacheDeTabelas,
         cacheDeLinhas: memoria,
-        chaveDeLinhas: versao,
+        chaveDeLinhas: mes ? `${versao}_mes_${mes}` : versao,
         fornecedor, fornecedorId, status, numOsp: osp, ospId,
         sep, bom, maxLinhas,
       });

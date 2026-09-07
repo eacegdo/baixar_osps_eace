@@ -199,3 +199,35 @@ describe('colunas', () => {
     assert.equal(COLUNAS.at(-1), 'ID Sisop');
   });
 });
+
+describe('Previsão de execução — regra de escola conectada', () => {
+  it('substitui a data de previsão pela data_relatorio quando a escola conectou no mês', () => {
+    const base = dadosBase();
+    base.Escolas = [{ _id: 'esc-1', INEP: '12345678', 'Status Geral': 'Conectada' }];
+    base.FR_OSP[0].Escola = 'esc-1';
+    base.FR_OSP[0].INEP = '12345678';
+    base.contrato_taxa_instalacao[0]['Previsão de execução'] = '2026-05-10T00:00:00.000Z'; // data original
+
+    const conexoesPorInep = new Map([
+      ['12345678', { inep: '12345678', dataRelatorio: '2026-09-02T15:30:00.000Z' }],
+    ]);
+
+    const linhas = gerarLinhas(base, { conexoesPorInep });
+    const linha = linhas.find((l) => l['ID Sisop'] === frProvId);
+
+    // Deve usar 02/09/2026 (data_relatorio) e não 10/05/2026 (previsão original)
+    assert.equal(linha['Previsão de execução'], '02/09/2026');
+  });
+
+  it('mantém a previsão de entrega original quando a escola não tem registro de conexão', () => {
+    const base = dadosBase();
+    base.Escolas = [{ _id: 'esc-1', INEP: '12345678', 'Status Geral': 'Em implantação' }];
+    base.FR_OSP[0].Escola = 'esc-1';
+    base.contrato_taxa_instalacao[0]['Previsão de execução'] = '2026-05-10T12:00:00.000Z';
+
+    const linhas = gerarLinhas(base);
+    const linha = linhas.find((l) => l['ID Sisop'] === frProvId);
+
+    assert.equal(linha['Previsão de execução'], '10/05/2026');
+  });
+});

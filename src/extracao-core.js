@@ -5,6 +5,7 @@ import { cacheEmDisco } from './cache.js';
 import { zipArquivos } from './zip.js';
 import { headerRow, toRow } from './csv.js';
 import { data, moeda, decimal, simNao, nomeArquivo, nomeSeguro } from './formato.js';
+import { carregarDadosMesComCache } from './competencia.js';
 
 /**
  * As trinta colunas do relatório, cada uma declarada uma vez: o nome que vai
@@ -32,7 +33,7 @@ const COLUNAS_DEF = [
   { nome: 'Prod serv', de: ({ item }) => item?.['produto/serviço'] },
   {
     nome: 'Previsão de execução',
-    de: ({ item, osp }) => item?.['Previsão de execução'] ?? osp['Previsão de entrega'],
+    de: ({ item, osp, dataConexao }) => dataConexao ?? item?.['Previsão de execução'] ?? osp['Previsão de entrega'],
     formato: data,
   },
   { nome: 'Num provisorio', de: ({ osp, item }) => osp.num_prov ?? item?.['Num Provisório'] },
@@ -111,17 +112,20 @@ const idsPorLinha = new WeakMap();
 export const idsDe = (linha) => idsPorLinha.get(linha) ?? {};
 
 /** Monta as linhas da extração a partir das tabelas cruas. */
-export function gerarLinhas(dados) {
-  const frs = dados.FR_OSP;
-  const itemPorId = porId(dados.contrato_taxa_instalacao);
-  const escolaPorId = porId(dados.Escolas);
-  const fornecedorPorId = porId(dados.fornecedor);
+export function gerarLinhas(dados, { conexoesPorInep, conexoesPorEscolaId } = {}) {
+  const frs = dados.FR_OSP ?? [];
+  const itemPorId = porId(dados.contrato_taxa_instalacao ?? []);
+  const escolaPorId = porId(dados.Escolas ?? []);
+  const fornecedorPorId = porId(dados.fornecedor ?? []);
+
+  const mapaPorInep = conexoesPorInep ?? dados.conexoesPorInep;
+  const mapaPorEscolaId = conexoesPorEscolaId ?? dados.conexoesPorEscolaId;
 
   // A OSP guarda a lista de FRs; inverte para achar a OSP de cada FR.
   // Fallback: FR.OSP, para FR cujo vínculo só existe nesse lado (OSP ainda provisória).
-  const ospPorId = porId(dados.OSP);
+  const ospPorId = porId(dados.OSP ?? []);
   const ospPorFr = new Map();
-  for (const osp of dados.OSP) {
+  for (const osp of dados.OSP ?? []) {
     for (const frId of osp.FR ?? []) ospPorFr.set(frId, osp);
   }
 
@@ -129,7 +133,16 @@ export function gerarLinhas(dados) {
     const osp = ospPorFr.get(fr._id) ?? ospPorId.get(fr.OSP) ?? {};
     const escola = escolaPorId.get(item?.escola ?? fr.Escola) ?? {};
     const fornecedor = fornecedorPorId.get(item?.Fornecedor ?? osp.Fornecedor) ?? {};
-    const contexto = { fr, item, osp, escola, fornecedor, numOsp: osp.OSnum ?? '' };
+
+    const inep = escola.INEP ?? fr.INEP;
+    const infoConexao = (inep && mapaPorInep?.get(String(inep).trim()))
+      ?? (escola._id && mapaPorEscolaId?.get(escola._id))
+      ?? (fr.Escola && mapaPorEscolaId?.get(fr.Escola));
+    const dataConexao = typeof infoConexao === 'object' && infoConexao !== null
+      ? infoConexao.dataRelatorio ?? infoConexao.data_relatorio
+      : infoConexao;
+
+    const contexto = { fr, item, osp, escola, fornecedor, numOsp: osp.OSnum ?? '', dataConexao };
 
     const linha = {};
     for (const { nome, de, formato = comoEsta } of COLUNAS_DEF) {
@@ -269,12 +282,13 @@ export function csvCompleto(linhas, sep = ',', comBom = false) {
  *   versão do app no Bubble, para live e test não se misturarem
  */
 export async function extrair(client, {
+  mes,
   ttl = 0,
   atualizar = false,
   onTabela,
   cacheDeTabelas,
   cacheDeLinhas,
-  chaveDeLinhas = client.versao ?? 'live',
+  chaveDeLinhas = mes ? `${client.versao ?? 'live'}_mes_${mes}` : (client.versao ?? 'live'),
   // recorte
   fornecedor, fornecedorId, status, numOsp, ospId,
   // formato
@@ -282,8 +296,22 @@ export async function extrair(client, {
   bom = false,
   maxLinhas = 1500,
 } = {}) {
-  const produzir = () =>
-    carregarDados(client, { ttl, atualizar, onTabela, cache: cacheDeTabelas }).then(gerarLinhas);
+  const produzir = async () => {
+    if (mes) {
+      const dados = await carregarDadosMesComCache(client, {
+        mes,
+        ttl,
+        atualizar,
+        cache: cacheDeTabelas ?? disco,
+        onTabela,
+      });
+      return gerarLinhas(dados, {
+        conexoesPorInep: dados.conexoesPorInep,
+        conexoesPorEscolaId: dados.conexoesPorEscolaId,
+      });
+    }
+    return carregarDados(client, { ttl, atualizar, onTabela, cache: cacheDeTabelas }).then(gerarLinhas);
+  };
 
   const todas = cacheDeLinhas
     ? (await cacheDeLinhas.obter(chaveDeLinhas, produzir, { ttl, atualizar })).dados

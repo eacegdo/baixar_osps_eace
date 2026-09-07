@@ -54,6 +54,8 @@ Demora ~1min30 na primeira vez do dia, ~5s nas seguintes (veja [Cache](#cache)).
 
 | Quero… | Comando |
 | --- | --- |
+| **Mês atual (rápido, ~3s)** | `npm run extracao -- --mes atual --zip` |
+| Mês específico (ex: 2026-09) | `npm run extracao -- --mes 2026-09 --zip` |
 | Um CSV único, tudo junto | `npm run extracao -- --unico` |
 | Abrir no Excel brasileiro | `npm run extracao -- --zip --sep ';'` |
 | Só um fornecedor | `npm run extracao -- --fornecedor BRISANET` |
@@ -129,6 +131,7 @@ curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o e
 | Parâmetro | Exemplo | O que faz |
 | --- | --- | --- |
 | `formato` | `?formato=zip` | `csv` (padrão), `zip` ou `json` |
+| `mes` | `?mes=atual` ou `?mes=2026-09` | Competência mensal: apenas folhas do mês e escolas conectadas no mês (~3s, ~25 chamadas). Omitir faz a extração completa |
 | `fornecedor` | `?fornecedor=BRISANET` | Nome do fornecedor (aceita o id também) |
 | `fornecedor_id` | `?fornecedor_id=1774638667943x152870812523466340` | Unique id do fornecedor no Bubble |
 | `osp` | `?osp=254` | Número definitivo ou provisório da OSP (aceita o id também) |
@@ -333,8 +336,12 @@ A planilha junta cinco tabelas do Bubble. Cada linha é **um item de uma OSP**.
 | Descrição Item, Qnt Produto, Valor unite ur, Valor Produto, Valor da NF, Prod serv | `contrato_taxa_instalacao` |
 | Num NF, Status NF Sisop, datas de SAP/nota, títulos de arquivo, Motivo da reprovação, ID Sisop | `FR_OSP` |
 
-Duas regras que não são cópia direta de campo:
+Três regras que não são cópia direta de campo:
 
+- **Previsão de execução**: quando a extração roda por mês (`--mes atual`),
+  para escolas que conectaram no mês (registradas na tabela `importação_escola`
+  com `Status Geral = Conectada`), essa coluna exibe a **`data_relatorio`** da
+  conexão (`dd/mm/aaaa`). Para as demais, exibe a previsão original da OSP/item.
 - **Validação OSP**: `Aprovado` quando a OSP já tem número definitivo,
   `Provisório` enquanto só tem número provisório.
 - **Valor da NF**: é o `Valor Total` do item, mesma fonte da tela do SISOP.
