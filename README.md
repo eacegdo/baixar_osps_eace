@@ -27,7 +27,7 @@ E preencha:
 
 | Variável | O que é | Onde achar |
 | --- | --- | --- |
-| `BUBBLE_BASE_URL` | Endereço da API do Bubble | `https://eace.org.br/api/1.1/obj` |
+| `BUBBLE_BASE_URL` | Endereço da API do Bubble | `https://seuapp.bubbleapps.io/api/1.1/obj` |
 | `BUBBLE_TOKEN` | Senha de acesso à API | No editor do Bubble: **Settings → API → API Tokens** |
 | `CACHE_TTL` | Validade da cópia local, em segundos | `900` (15 min) — veja [Cache](#cache) |
 | `API_KEY` | Senha da sua API | Veja [Chave da API](#chave-da-api) |
@@ -56,11 +56,11 @@ Demora ~1min30 na primeira vez do dia, ~5s nas seguintes (veja [Cache](#cache)).
 | --- | --- |
 | Um CSV único, tudo junto | `npm run extracao -- --unico` |
 | Abrir no Excel brasileiro | `npm run extracao -- --zip --sep ';'` |
-| Só um fornecedor | `npm run extracao -- --fornecedor BRISANET` |
-| Fornecedor pelo unique id | `npm run extracao -- --fornecedor-id 1774638667943x152870812523466340` |
-| OSP pelo unique id | `npm run extracao -- --osp-id 1762525512670x975509644092375000` |
+| Só um fornecedor | `npm run extracao -- --fornecedor ORION` |
+| Fornecedor pelo unique id | `npm run extracao -- --fornecedor-id 1700000000000x100000000000000000` |
+| OSP pelo unique id | `npm run extracao -- --osp-id 1700000000001x200000000000000000` |
 | Só um status | `npm run extracao -- --status Concluído` |
-| Só uma OSP (definitivo ou provisório) | `npm run extracao -- --osp 254` |
+| Só uma OSP (definitivo ou provisório) | `npm run extracao -- --osp 100` |
 | Partes maiores (2000 linhas) | `npm run extracao -- --zip --linhas 2000` |
 | Puxar da versão de desenvolvimento | `npm run extracao -- --versao test` |
 | Salvar em outra pasta | `npm run extracao -- --out relatorio_agosto` |
@@ -108,8 +108,8 @@ curl -O -J "http://localhost:8080/extracao?formato=zip"
 curl "http://localhost:8080/extracao?sep=%3B" -o extracao_osp.csv
 
 # filtrando
-curl "http://localhost:8080/extracao?fornecedor=BRISANET" -o brisanet.csv
-curl "http://localhost:8080/extracao?osp=254&formato=json"
+curl "http://localhost:8080/extracao?fornecedor=ORION" -o orion.csv
+curl "http://localhost:8080/extracao?osp=100&formato=json"
 
 # acento no filtro: use --data-urlencode, senão o curl manda errado e dá 400
 curl -G "http://localhost:8080/extracao" --data-urlencode 'status=Concluído' -o concluidas.csv
@@ -129,15 +129,15 @@ curl -H "X-API-Key: SUA_CHAVE" "http://localhost:8080/extracao?formato=zip" -o e
 | Parâmetro | Exemplo | O que faz |
 | --- | --- | --- |
 | `formato` | `?formato=zip` | `csv` (padrão), `zip` ou `json` |
-| `fornecedor` | `?fornecedor=BRISANET` | Nome do fornecedor (aceita o id também) |
-| `fornecedor_id` | `?fornecedor_id=1774638667943x152870812523466340` | Unique id do fornecedor no Bubble |
-| `osp` | `?osp=254` | Número definitivo ou provisório da OSP (aceita o id também) |
-| `osp_id` | `?osp_id=1762525512670x975509644092375000` | Unique id da OSP no Bubble |
+| `fornecedor` | `?fornecedor=ORION` | Nome do fornecedor (aceita o id também) |
+| `fornecedor_id` | `?fornecedor_id=1700000000000x100000000000000000` | Unique id do fornecedor no Bubble |
+| `osp` | `?osp=100` | Número definitivo ou provisório da OSP (aceita o id também) |
+| `osp_id` | `?osp_id=1700000000001x200000000000000000` | Unique id da OSP no Bubble |
 | `status` | `?status=Concluído` | Só um status de OSP |
 | `sep` | `?sep=%3B` | Troca a vírgula por `;` (Excel brasileiro) |
 | `bom` | `?bom=false` | Tira o BOM do CSV |
 | `versao` | `?versao=test` | Versão do app no Bubble: `live` (padrão) ou `test` (`/version-test`) |
-| `arquivo` | `?arquivo=osp_brisanet` | Nome do arquivo baixado, sem extensão (padrão `extracao_osp-<carimbo>`) |
+| `arquivo` | `?arquivo=osp_orion` | Nome do arquivo baixado, sem extensão (padrão `extracao_osp-<carimbo>`) |
 | `linhas` | `?linhas=2000` | Tamanho de cada arquivo no zip (padrão 1500) |
 | `atualizar` | `?atualizar=true` | Busca dado fresco no Bubble e **renova** o cache — é o "atualizar" da tela |
 | `ttl` | `?ttl=0` | `0` busca dado fresco **sem** renovar o cache (uso avulso) |
@@ -149,7 +149,7 @@ chama a API pode montar a URL sempre igual, trocando só o valor:
 
 ```bash
 curl "http://localhost:8080/extracao?fornecedor=*"       # todos os fornecedores
-curl "http://localhost:8080/extracao?fornecedor=BRISANET" # só um
+curl "http://localhost:8080/extracao?fornecedor=ORION" # só um
 ```
 
 #### Filtrar por unique id
@@ -161,28 +161,28 @@ editar no Bubble:
 ```bash
 # pelo nome — precisa de --data-urlencode por causa do espaço
 curl -G "http://localhost:8080/extracao" \
-  --data-urlencode 'fornecedor=STEIN TELECOM LTDA (filial PA)'
+  --data-urlencode 'fornecedor=SIRIUS TELECOM LTDA (filial XX)'
 
 # pelo id — cola direto na URL, sem encode
-curl "http://localhost:8080/extracao?fornecedor_id=1774638667943x152870812523466340"
+curl "http://localhost:8080/extracao?fornecedor_id=1700000000000x100000000000000000"
 ```
 
-Os dois devolvem as mesmas 3.820 linhas. Um id que não existe devolve 0 linhas
+Os dois devolvem as mesmas 1.234 linhas. Um id que não existe devolve 0 linhas
 (não dá erro).
 
 Pra descobrir os ids, peça a extração em json — cada linha traz
 `_fornecedorId` e `_ospId`:
 
 ```bash
-curl "http://localhost:8080/extracao?formato=json&osp=254"
+curl "http://localhost:8080/extracao?formato=json&osp=100"
 ```
 
 Filtros se somam:
 
 ```bash
 curl -G "http://localhost:8080/extracao" \
-  --data-urlencode 'fornecedor_id=1774638667943x152870812523466340' \
-  --data-urlencode 'status=Concluído'      # 292 linhas
+  --data-urlencode 'fornecedor_id=1700000000000x100000000000000000' \
+  --data-urlencode 'status=Concluído'      # 87 linhas
 ```
 
 ## 4. Rodar com Docker
@@ -262,7 +262,7 @@ porta. Só faça isso rodando local, na sua máquina.
 
 ## Cache
 
-Pra montar a planilha o programa precisa buscar ~165 mil registros no Bubble —
+Pra montar a planilha o programa precisa buscar ~100 mil registros no Bubble —
 tipo copiar cinco fichários inteiros. Leva ~1min30.
 
 Pra não repetir isso toda hora, ele guarda uma cópia local na pasta `.cache`.
@@ -337,9 +337,9 @@ Duas regras que não são cópia direta de campo:
 
 - **Validação OSP**: `Aprovado` quando a OSP já tem número definitivo,
   `Provisório` enquanto só tem número provisório.
-- **Valor da NF**: é o `Valor Total` do item, mesma fonte da tela do SISOP.
+- **Valor da NF**: é o `Valor Total` do item, mesma fonte da tela do portal.
   Dá o mesmo número de `Valor Produto`, só que com separador de milhar
-  (`14.579,25` em vez de `14579,25`). Os campos `Valor da nota` e `Valor total`
+  (`12.345,67` em vez de `12345,67`). Os campos `Valor da nota` e `Valor total`
   da `FR_OSP` não são usados: vivem desatualizados ou zerados no Bubble.
 
 ---

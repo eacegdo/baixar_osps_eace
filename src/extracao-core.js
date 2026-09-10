@@ -15,7 +15,7 @@ import { data, moeda, decimal, simNao, nomeArquivo, nomeSeguro } from './formato
  *
  * `de` recebe o contexto da linha: a FR, o item, a OSP, a escola, o fornecedor
  * e o número definitivo da OSP já resolvido. É essa coluna da esquerda que se
- * confere contra a tela do SISOP.
+ * confere contra a tela do portal.
  */
 const COLUNAS_DEF = [
   { nome: 'Projeto', de: ({ escola, fr }) => escola.INEP ?? fr.INEP },
@@ -42,7 +42,7 @@ const COLUNAS_DEF = [
   { nome: 'Status escola', de: ({ escola }) => escola['Status Geral'] },
   { nome: 'Status NF Sisop', de: ({ fr }) => fr.status },
   { nome: 'Num NF', de: ({ fr }) => fr.NotaFiscal_numero },
-  // Mesma fonte da tela do SISOP: o 'Valor Total' do item, não o campo da FR.
+  // Mesma fonte da tela do portal: o 'Valor Total' do item, não o campo da FR.
   // É o mesmo número de 'Valor Produto', só que com separador de milhar.
   { nome: 'Valor da NF', de: ({ item }) => item?.['Valor Total'], formato: moeda },
   { nome: 'Fase', de: ({ escola }) => escola.FASE },

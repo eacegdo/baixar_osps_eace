@@ -6,7 +6,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { criarApp } from './app.js';
 import { cacheEmMemoria } from './cache.js';
 import { COLUNAS } from './extracao-core.js';
-import { clientFalso, tabelasFalsas, FORN_NUH, OSP_PROV } from './dados-falsos.js';
+import { clientFalso, tabelasFalsas, FORN_VEGA, OSP_PROV } from './dados-falsos.js';
 
 const BOM = '﻿';
 
@@ -65,7 +65,7 @@ describe('formato csv', () => {
   });
 
   it('escapa vírgula, aspas e quebra de linha dentro da célula', async () => {
-    const res = await pedir('formato=csv&fornecedor=BRISANET&ttl=0');
+    const res = await pedir('formato=csv&fornecedor=ORION&ttl=0');
     const { linhas } = corpoCsv(res.body);
     // A quebra de linha vira espaço e a célula sai entre aspas, com aspas dobradas.
     const comEscape = linhas.find((l) => l.includes('Fibra'));
@@ -85,9 +85,9 @@ describe('formato zip', () => {
     assert.equal(res.headers['x-file-count'], '2');
 
     const arquivos = arquivosDoZip(res);
-    assert.deepEqual(Object.keys(arquivos).sort(), ['BRISANET_Parte_1.csv', 'NUH__DIGITAL_Parte_1.csv']);
+    assert.deepEqual(Object.keys(arquivos).sort(), ['ORION_Parte_1.csv', 'VEGA__DIGITAL_Parte_1.csv']);
 
-    const { cabecalho, linhas } = corpoCsv(strFromU8(arquivos['NUH__DIGITAL_Parte_1.csv']));
+    const { cabecalho, linhas } = corpoCsv(strFromU8(arquivos['VEGA__DIGITAL_Parte_1.csv']));
     assert.deepEqual(cabecalho, COLUNAS);
     assert.equal(linhas.length, 2);
   });
@@ -96,10 +96,10 @@ describe('formato zip', () => {
     const res = await pedir('formato=zip&linhas=1&ttl=0');
     const arquivos = arquivosDoZip(res);
     assert.deepEqual(Object.keys(arquivos).sort(), [
-      // As duas linhas da BRISANET são da mesma OSP: não se separam.
-      'BRISANET_Parte_1.csv',
-      'NUH__DIGITAL_Parte_1.csv',
-      'NUH__DIGITAL_Parte_2.csv',
+      // As duas linhas da ORION são da mesma OSP: não se separam.
+      'ORION_Parte_1.csv',
+      'VEGA__DIGITAL_Parte_1.csv',
+      'VEGA__DIGITAL_Parte_2.csv',
     ]);
     assert.equal(res.headers['x-file-count'], '3');
   });
@@ -121,9 +121,9 @@ describe('filtros', () => {
   const quantas = async (querystring) => (await pedir(`formato=json&ttl=0&${querystring}`)).json().linhas;
 
   it('fornecedor por nome, por unique id e * para todos', async () => {
-    assert.equal(await quantas('fornecedor=NUH! DIGITAL'), 2);
-    assert.equal(await quantas(`fornecedor=${FORN_NUH}`), 2);
-    assert.equal(await quantas(`fornecedor_id=${FORN_NUH}`), 2);
+    assert.equal(await quantas('fornecedor=VEGA! DIGITAL'), 2);
+    assert.equal(await quantas(`fornecedor=${FORN_VEGA}`), 2);
+    assert.equal(await quantas(`fornecedor_id=${FORN_VEGA}`), 2);
     assert.equal(await quantas('fornecedor=*'), 4);
     assert.equal(await quantas('fornecedor='), 4);
   });
@@ -142,8 +142,8 @@ describe('filtros', () => {
   });
 
   it('combina fornecedor e status', async () => {
-    assert.equal(await quantas('fornecedor=NUH! DIGITAL&status=Solicitado'), 1);
-    assert.equal(await quantas('fornecedor=BRISANET&status=Solicitado'), 0);
+    assert.equal(await quantas('fornecedor=VEGA! DIGITAL&status=Solicitado'), 1);
+    assert.equal(await quantas('fornecedor=ORION&status=Solicitado'), 0);
   });
 });
 
@@ -210,7 +210,7 @@ describe('cache da rota', () => {
     try {
       const [a, b] = await Promise.all([
         instancia.inject({ method: 'GET', url: '/extracao?formato=json' }),
-        instancia.inject({ method: 'GET', url: '/extracao?formato=json&fornecedor=BRISANET' }),
+        instancia.inject({ method: 'GET', url: '/extracao?formato=json&fornecedor=ORION' }),
       ]);
       assert.equal(a.json().linhas, 4);
       assert.equal(b.json().linhas, 2);

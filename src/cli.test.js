@@ -58,9 +58,9 @@ describe('CLI', () => {
     assert.match(stdout, /OK: 4 linhas, 2 fornecedores, 2 arquivos em saida\//);
 
     const escritos = await readdir(path.join(dir, 'saida'));
-    assert.deepEqual(escritos.sort(), ['BRISANET_Parte_1.csv', 'NUH__DIGITAL_Parte_1.csv']);
+    assert.deepEqual(escritos.sort(), ['ORION_Parte_1.csv', 'VEGA__DIGITAL_Parte_1.csv']);
 
-    const csv = await readFile(path.join(dir, 'saida', 'NUH__DIGITAL_Parte_1.csv'), 'utf8');
+    const csv = await readFile(path.join(dir, 'saida', 'VEGA__DIGITAL_Parte_1.csv'), 'utf8');
     assert.ok(csv.startsWith('Projeto,Cod Fornecedor,'), csv.slice(0, 40));
     // Cabeçalho e duas linhas; os arquivos do zip vão sem BOM, como no modelo.
     assert.equal(csv.trimEnd().split('\r\n').length, 3);
@@ -83,15 +83,15 @@ describe('CLI', () => {
     const bytes = await readFile(path.join(dir, 'comzip.zip'));
     assert.deepEqual(
       Object.keys(unzipSync(new Uint8Array(bytes))).sort(),
-      ['BRISANET_Parte_1.csv', 'NUH__DIGITAL_Parte_1.csv'],
+      ['ORION_Parte_1.csv', 'VEGA__DIGITAL_Parte_1.csv'],
     );
   });
 
   it('os filtros e o separador da linha de comando recortam o resultado', async () => {
-    const { stdout } = await rodar('--out', 'recorte', '--fornecedor', 'BRISANET', '--sep', ';');
+    const { stdout } = await rodar('--out', 'recorte', '--fornecedor', 'ORION', '--sep', ';');
     assert.match(stdout, /OK: 2 linhas, 1 fornecedores, 1 arquivos/);
 
-    const csv = await readFile(path.join(dir, 'recorte', 'BRISANET_Parte_1.csv'), 'utf8');
+    const csv = await readFile(path.join(dir, 'recorte', 'ORION_Parte_1.csv'), 'utf8');
     assert.ok(csv.startsWith('Projeto;Cod Fornecedor;'), csv.slice(0, 40));
   });
 
@@ -99,10 +99,10 @@ describe('CLI', () => {
     await rodar('--out', 'fatiado', '--linhas', '1');
     const escritos = await readdir(path.join(dir, 'fatiado'));
     assert.deepEqual(escritos.sort(), [
-      // As duas linhas da BRISANET são da mesma OSP: não se separam.
-      'BRISANET_Parte_1.csv',
-      'NUH__DIGITAL_Parte_1.csv',
-      'NUH__DIGITAL_Parte_2.csv',
+      // As duas linhas da ORION são da mesma OSP: não se separam.
+      'ORION_Parte_1.csv',
+      'VEGA__DIGITAL_Parte_1.csv',
+      'VEGA__DIGITAL_Parte_2.csv',
     ]);
   });
 });

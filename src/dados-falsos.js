@@ -2,48 +2,48 @@
 // testes usam; ficam num módulo próprio porque mais de um arquivo de teste
 // precisa das mesmas cinco tabelas.
 
-export const FORN_NUH = '100x1';
-export const FORN_BRISA = '100x2';
+export const FORN_VEGA = '100x1';
+export const FORN_ORION = '100x2';
 export const ESCOLA_A = '500x1';
 export const ESCOLA_B = '500x2';
 export const OSP_APROV = '200x1';
 export const OSP_PROV = '200x2';
-export const OSP_BRISA = '200x3';
+export const OSP_ORION = '200x3';
 export const FR_APROV = '300x1';
 export const FR_PROV = '300x2';
-export const FR_BRISA = '300x3';
+export const FR_ORION = '300x3';
 export const FR_SEM_ITEM = '300x4';
 const ITEM_APROV = '400x1';
 const ITEM_PROV = '400x2';
-const ITEM_BRISA = '400x3';
+const ITEM_ORION = '400x3';
 
 /** Cinco tabelas novas a cada chamada, para um teste poder mexer nas suas. */
 export const tabelasFalsas = () => ({
   fornecedor: [
     {
-      _id: FORN_NUH,
-      'Nome Fantasia': 'NUH! DIGITAL',
-      CNPJ: '29.556.286/0001-78',
+      _id: FORN_VEGA,
+      'Nome Fantasia': 'VEGA! DIGITAL',
+      CNPJ: '11.222.333/0001-44',
       cod_aniel: '136',
     },
     {
-      _id: FORN_BRISA,
-      'Nome Fantasia': 'BRISANET',
-      CNPJ: '04.601.397/0001-28',
+      _id: FORN_ORION,
+      'Nome Fantasia': 'ORION',
+      CNPJ: '55.666.777/0001-88',
       cod_aniel: '204',
     },
   ],
   Escolas: [
     {
       _id: ESCOLA_A,
-      INEP: '26120836',
+      INEP: '10000001',
       'Status Geral': 'Ativada',
       FASE: 'Fase 1',
       'Ativação GERAL': '2025-03-10T12:00:00.000Z',
     },
     {
       _id: ESCOLA_B,
-      INEP: '26120837',
+      INEP: '10000002',
       'Status Geral': 'Em instalação',
       FASE: 'Fase 2',
     },
@@ -56,7 +56,7 @@ export const tabelasFalsas = () => ({
       'Valor Unitário': 1143.2,
       'Valor Total': 2286.4,
       'produto/serviço': 'Material',
-      Fornecedor: FORN_NUH,
+      Fornecedor: FORN_VEGA,
       escola: ESCOLA_A,
       'Numero da obra': 'OB-77',
       'Previsão de execução': '2025-04-01T12:00:00.000Z',
@@ -68,26 +68,26 @@ export const tabelasFalsas = () => ({
       'Valor Unitário': 100,
       'Valor Total': 100,
       'produto/serviço': 'Serviço',
-      Fornecedor: FORN_NUH,
+      Fornecedor: FORN_VEGA,
       escola: ESCOLA_B,
       'Num Provisório': 5303,
     },
     {
-      _id: ITEM_BRISA,
+      _id: ITEM_ORION,
       // Vírgula, aspas e quebra de linha, para exercitar o escape do CSV.
       Descrição: 'Fibra, 100m\ncom emenda "dupla"',
       Quantidade: 3,
       'Valor Unitário': 10,
       'Valor Total': 30,
       'produto/serviço': 'Material',
-      Fornecedor: FORN_BRISA,
+      Fornecedor: FORN_ORION,
       escola: ESCOLA_A,
     },
   ],
   OSP: [
     {
       _id: OSP_APROV,
-      Fornecedor: FORN_NUH,
+      Fornecedor: FORN_VEGA,
       status: 'Nota Fiscal',
       OSnum: 4782,
       num_prov: 5304,
@@ -96,16 +96,16 @@ export const tabelasFalsas = () => ({
     {
       // Sem OSnum e sem lista FR: o vínculo existe só em FR.OSP.
       _id: OSP_PROV,
-      Fornecedor: FORN_NUH,
+      Fornecedor: FORN_VEGA,
       status: 'Solicitado',
       num_prov: 5303,
     },
     {
-      _id: OSP_BRISA,
-      Fornecedor: FORN_BRISA,
+      _id: OSP_ORION,
+      Fornecedor: FORN_ORION,
       status: 'Concluído',
       OSnum: 1793,
-      FR: [FR_BRISA, FR_SEM_ITEM],
+      FR: [FR_ORION, FR_SEM_ITEM],
     },
   ],
   FR_OSP: [
@@ -128,19 +128,19 @@ export const tabelasFalsas = () => ({
       'lista de contratos_instalação': [ITEM_PROV],
     },
     {
-      _id: FR_BRISA,
-      OSP: OSP_BRISA,
+      _id: FR_ORION,
+      OSP: OSP_ORION,
       status: 'Enviada',
-      'lista de contratos_instalação': [ITEM_BRISA],
+      'lista de contratos_instalação': [ITEM_ORION],
       'Enviado para SAP': false,
       Recusa_texto: 'Valor divergente',
     },
     {
       // FR sem item: vira uma linha só, para não sumir do relatório.
       _id: FR_SEM_ITEM,
-      OSP: OSP_BRISA,
+      OSP: OSP_ORION,
       status: 'Pendente',
-      Escola: '26120839',
+      Escola: '10000003',
       'lista de contratos_instalação': [],
     },
   ],

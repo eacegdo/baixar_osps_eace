@@ -62,7 +62,7 @@ export function nomeArquivo(url) {
   }
 }
 
-/** Nome de arquivo seguro, no padrão STEIN_TELECOM_LTDA__filial_PA_. */
+/** Nome de arquivo seguro, no padrão SIRIUS_TELECOM_LTDA__filial_XX_. */
 export function nomeSeguro(texto) {
   return String(texto || 'SEM_FORNECEDOR')
     .normalize('NFD')

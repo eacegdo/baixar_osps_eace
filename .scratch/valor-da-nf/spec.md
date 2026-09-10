@@ -5,25 +5,25 @@ Status: ready-for-agent
 ## Problem Statement
 
 Quem confere o relatório de novos casos identificados encontra linhas com
-`Valor da NF` em `0,00` enquanto o SISOP, para a mesma nota, mostra o valor
+`Valor da NF` em `0,00` enquanto o portal, para a mesma nota, mostra o valor
 cheio. Como o relatório é o que circula fora do portal — conferência de
 faturamento, cobrança de fornecedor, fechamento de fase —, um valor zerado
-manda o time voltar ao SISOP nota a nota pra descobrir qual dos dois números
+manda o time voltar ao portal nota a nota pra descobrir qual dos dois números
 vale. Pior: um `0,00` não parece erro, parece nota sem valor, e passa batido.
 
-Casos reportados (todos ACS STEIN):
+Casos reportados (todos ACS SIRIUS):
 
-| INEP | OSP | Num NF | Relatório | SISOP |
+| INEP | OSP | Num NF | Relatório | portal |
 | --- | --- | --- | --- | --- |
-| 15572757 | 184 | 4022 | 0,00 | 14.579,25 |
-| 29013534 | 222 | 3125 | 0,00 | 2.326,94 |
-| 29397294 | 222 | 3263 | 0,00 | 25.861,49 |
-| 15565181 | 241 | 4637 | 0,00 | 11.822,83 |
-| 29203350 | 322 | 3079 | 0,00 | 23.785,46 |
+| 10000011 | 184 | 4022 | 0,00 | 12.345,67 |
+| 10000012 | 222 | 3125 | 0,00 | 3.210,50 |
+| 10000013 | 222 | 3263 | 0,00 | 9.876,54 |
+| 10000014 | 241 | 4637 | 0,00 | 4.567,89 |
+| 10000015 | 322 | 3079 | 0,00 | 8.765,43 |
 
 ## Solution
 
-`Valor da NF` passa a ler a mesma fonte que a tela do SISOP lê: o `Valor Total`
+`Valor da NF` passa a ler a mesma fonte que a tela do portal lê: o `Valor Total`
 do item de `contrato_taxa_instalacao`, e não mais os campos de valor da própria
 `FR_OSP`. O relatório e o portal passam a mostrar o mesmo número, sem conferência
 manual.
@@ -31,11 +31,11 @@ manual.
 ## User Stories
 
 1. Como analista de faturamento, quero que o `Valor da NF` do relatório bata com
-   o que o SISOP mostra, para não precisar abrir o portal nota a nota.
+   o que o portal mostra, para não precisar abrir o portal nota a nota.
 2. Como analista de faturamento, quero que notas com valor cheio parem de sair
    como `0,00`, para não subestimar o total de um fornecedor no fechamento.
 3. Como analista de faturamento, quero que a coluna venha formatada em pt-BR com
-   separador de milhar (`14.579,25`), para ler valores altos sem contar dígito.
+   separador de milhar (`12.345,67`), para ler valores altos sem contar dígito.
 4. Como analista de faturamento, quero que `Valor da NF` e `Valor Produto`
    mostrem o mesmo número do item, para conferir uma linha contra a outra.
 5. Como analista de faturamento, quero uma linha por item da FR com o valor
@@ -63,7 +63,7 @@ manual.
   do item da linha. Os campos `FR_OSP['Valor da nota']` e `FR_OSP['Valor total']`
   deixam de ser lidos pela extração.
 
-  A decisão veio da expressão do próprio SISOP, conferida na tela de configuração
+  A decisão veio da expressão do próprio portal, conferida na tela de configuração
   do relatório: `Current row's FR_OSP's lista de contratos_instalação:first item's
   Valor Total:formatted as R$1.028,58`. Copiar a fonte do portal é o que garante
   paridade — qualquer regra própria volta a divergir na primeira nota atípica.
@@ -71,9 +71,9 @@ manual.
 - **Sem fallback.** A expressão é única, sem `??` nem `||` encadeado. Um item com
   `Valor Total` zerado sai `0,00`; uma FR sem item sai vazia. Fallback foi
   descartado depois de medido: nenhuma combinação dos campos da `FR_OSP` reproduz
-  o SISOP em 100% dos casos, e a cadeia só esconde de qual campo o número veio.
+  o portal em 100% dos casos, e a cadeia só esconde de qual campo o número veio.
 
-- **Granularidade.** O SISOP usa `first item` porque a tela dele mostra uma linha
+- **Granularidade.** O portal usa `first item` porque a tela dele mostra uma linha
   por FR. A extração já emite **uma linha por item**, então cada linha usa o
   `Valor Total` do seu próprio item. Repetir o valor do primeiro item nas demais
   linhas produziria soma inflada na conferência. Divergência consciente da
@@ -81,9 +81,9 @@ manual.
   que é a esmagadora maioria.
 
 - **Relação com `Valor Produto`.** As duas colunas passam a ter a mesma origem,
-  mudando só o formato: `Valor Produto` usa `decimal()` (`14579,25`, sem milhar)
-  e `Valor da NF` usa `moeda()` (`14.579,25`, com milhar). É exatamente o que o
-  SISOP faz — as duas expressões dele apontam para o mesmo campo, com máscaras
+  mudando só o formato: `Valor Produto` usa `decimal()` (`12345,67`, sem milhar)
+  e `Valor da NF` usa `moeda()` (`12.345,67`, com milhar). É exatamente o que o
+  portal faz — as duas expressões dele apontam para o mesmo campo, com máscaras
   diferentes. A redundância é do modelo do relatório, não deste código.
 
 - **Módulo alterado.** Só a montagem de linha do núcleo de extração
@@ -101,14 +101,14 @@ manual.
 
 - **Dados da origem.** Medido sobre o cache real (40.613 FRs, 40.613 linhas):
   111 linhas ficam `0,00` (item zerado no Bubble) e 767 ficam vazias (FR sem
-  item). São problemas de preenchimento na origem, não da extração — o SISOP
+  item). São problemas de preenchimento na origem, não da extração — o portal
   mostra o mesmo. Corrigir o Bubble é assunto separado.
 
 ## Testing Decisions
 
 Um bom teste aqui descreve o que sai na planilha, não como o código chega lá:
 monta as cinco tabelas cruas, roda a geração de linhas e afirma sobre o texto
-final da célula — `'14.579,25'`, não `14579.25`. Nada de espiar função interna
+final da célula — `'12.345,67'`, não `12345.67`. Nada de espiar função interna
 ou ordem de leitura de campo.
 
 - **Seam.** `gerarLinhas(dados)` — função pura, tabelas cruas na entrada, linhas
@@ -128,7 +128,7 @@ ou ordem de leitura de campo.
 
 - **Verificação fora do teste automatizado.** As cinco linhas reportadas foram
   conferidas contra o cache real antes de fechar, comparando com os valores que o
-  SISOP exibe. Checagem pontual, não parte da suíte.
+  portal exibe. Checagem pontual, não parte da suíte.
 
 ## Out of Scope
 
@@ -136,11 +136,11 @@ ou ordem de leitura de campo.
   zerado seguem zeradas na origem. A extração deixou de depender desses campos,
   mas quem os consome direto continua vendo o mesmo problema.
 - Os 111 itens com `Valor Total` zerado e as 767 FRs sem item. Aparecem como
-  `0,00` e vazio, igual ao SISOP.
-- Alinhar as outras colunas cujas expressões do SISOP divergem do código
+  `0,00` e vazio, igual ao portal.
+- Alinhar as outras colunas cujas expressões do portal divergem do código
   (`Projeto`, `Cod Fornecedor`/`Fornecedor`/`CNPJ`, `Num Obra`, `Fase` usam
   fallbacks que o portal não tem). Levantado durante a análise, decisão adiada.
-- Mudar a granularidade do relatório para uma linha por FR, como a tela do SISOP.
+- Mudar a granularidade do relatório para uma linha por FR, como a tela do portal.
 - Regerar os CSVs já gravados em `extracao_osp/`.
 - Remover a redundância entre `Valor da NF` e `Valor Produto` — é o modelo do
   relatório que pede as duas.
@@ -151,7 +151,7 @@ O bug original não era a fonte errada, era o operador: a coluna usava
 `Valor da nota ?? Valor total`, e `??` só cai no fallback com `null`/`undefined`.
 Com `Valor da nota = 0` — o caso das cinco notas —, o zero passava como valor
 válido. Trocar para `||` resolveria as cinco linhas, mas manteria a coluna presa
-a campos que o SISOP nem lê; a expressão do portal mostrou que a fonte inteira
+a campos que o portal nem lê; a expressão do portal mostrou que a fonte inteira
 estava errada.
 
 Levantamento que sustenta o abandono dos campos da `FR_OSP`, sobre as 40.613

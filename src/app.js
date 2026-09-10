@@ -110,7 +110,7 @@ export async function criarApp({
           properties: {
             formato: { type: 'string', enum: ['csv', 'zip', 'json'], default: 'csv', description: 'Formato da resposta' },
             fornecedor: { type: 'string', description: 'Nome do fornecedor ou o unique id dele. * (ou vazio) traz todos' },
-            fornecedor_id: { type: 'string', description: 'Unique id do fornecedor no Bubble (ex.: 1774638667943x152870812523466340)' },
+            fornecedor_id: { type: 'string', description: 'Unique id do fornecedor no Bubble (ex.: 1700000000000x100000000000000000)' },
             osp_id: { type: 'string', description: 'Unique id da OSP no Bubble' },
             status: { type: 'string', description: 'Status da OSP. * (ou vazio) traz todos' },
             osp: { type: 'string', description: 'Número definitivo ou provisório da OSP, ou o unique id dela. * (ou vazio) traz todos' },
