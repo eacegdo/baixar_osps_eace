@@ -32,17 +32,22 @@ const sep = args.sep ?? ',';
 const ttl = args['sem-cache'] ? 0 : Number(args.ttl ?? process.env.CACHE_TTL ?? 900);
 
 const versao = args.versao === true ? 'live' : (args.versao ?? 'live');
+const mes = args.completo ? undefined : (args.mes === true ? 'atual' : args.mes);
 
 const client = criarClient(versao);
 const inicio = Date.now();
 
-console.log(`Baixando tabelas (${versao})...`);
+console.log(`Baixando tabelas (${versao}${mes ? `, competência: ${mes}` : ', histórico completo'})...`);
 const extracao = await extrair(client, {
+  mes,
   ttl,
   // --atualizar baixa do Bubble e regrava o cache; --sem-cache passa por fora dele.
   atualizar: Boolean(args.atualizar),
-  onTabela: ({ tabela, registros, ms, doCache }) =>
-    console.log(`  ${tabela}: ${registros} registros (${(ms / 1000).toFixed(1)}s${doCache ? ', cache' : ''})`),
+  onTabela: ({ tabela, registros, ms, doCache }) => {
+    if (ms !== undefined) {
+      console.log(`  ${tabela}: ${registros} registros (${(ms / 1000).toFixed(1)}s${doCache ? ', cache' : ''})`);
+    }
+  },
   fornecedor: args.fornecedor,
   fornecedorId: args['fornecedor-id'],
   status: args.status,

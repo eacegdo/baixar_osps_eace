@@ -37,7 +37,7 @@ export const tabelasFalsas = () => ({
     {
       _id: ESCOLA_A,
       INEP: '10000001',
-      'Status Geral': 'Ativada',
+      'Status Geral': 'Conectada',
       FASE: 'Fase 1',
       'Ativação GERAL': '2025-03-10T12:00:00.000Z',
     },
@@ -46,6 +46,13 @@ export const tabelasFalsas = () => ({
       INEP: '10000002',
       'Status Geral': 'Em instalação',
       FASE: 'Fase 2',
+    },
+  ],
+  importação_escola: [
+    {
+      _id: 'imp-1',
+      inep: '10000001',
+      data_relatorio: '2026-09-05T12:00:00.000Z',
     },
   ],
   contrato_taxa_instalacao: [
@@ -112,6 +119,9 @@ export const tabelasFalsas = () => ({
     {
       _id: FR_APROV,
       OSP: OSP_APROV,
+      Escola: ESCOLA_A,
+      INEP: '10000001',
+      'Created Date': '2026-09-02T12:00:00.000Z',
       status: 'Enviada',
       NotaFiscal_numero: '12345',
       'lista de contratos_instalação': [ITEM_APROV],

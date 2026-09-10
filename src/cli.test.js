@@ -105,4 +105,10 @@ describe('CLI', () => {
       'VEGA__DIGITAL_Parte_2.csv',
     ]);
   });
+
+  it('--mes roda o carregamento reduzido por competência', async () => {
+    const { stdout } = await rodar('--out', 'mes_setembro', '--mes', '2026-09');
+    assert.match(stdout, /competência: 2026-09/);
+    assert.match(stdout, /OK: \d+ linhas/);
+  });
 });

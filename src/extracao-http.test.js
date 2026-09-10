@@ -279,3 +279,20 @@ describe('cache da rota', () => {
     }
   });
 });
+
+describe('parâmetro mes — competência', () => {
+  it('filtra por competência mensal e aplica a data_relatorio na previsão', async () => {
+    const res = await pedir('mes=2026-09&formato=json&ttl=0');
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.linhas > 0);
+    const linha = body.dados.find((l) => l.Projeto === '10000001');
+    assert.ok(linha);
+    assert.equal(linha['Previsão de execução'], '05/09/2026');
+  });
+
+  it('retorna 502 se o formato do mês for inválido', async () => {
+    const res = await pedir('mes=invalido&ttl=0');
+    assert.equal(res.statusCode, 502);
+  });
+});
