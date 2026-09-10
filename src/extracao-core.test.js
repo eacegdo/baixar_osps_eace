@@ -12,8 +12,8 @@ const itemAprovId = '400x2';
 
 const fornecedor = {
   _id: fornId,
-  'Nome Fantasia': 'NUH! DIGITAL',
-  CNPJ: '29.556.286/0001-78',
+  'Nome Fantasia': 'VEGA! DIGITAL',
+  CNPJ: '11.222.333/0001-44',
   cod_aniel: '136',
 };
 
@@ -95,7 +95,7 @@ describe('gerarLinhas — FRs provisórias', () => {
     assert.equal(l['Num provisorio'], 5303);
     assert.equal(l['Validação OSP'], 'Provisório');
     assert.equal(l['Status OSP'], 'Solicitado');
-    assert.equal(l.Fornecedor, 'NUH! DIGITAL');
+    assert.equal(l.Fornecedor, 'VEGA! DIGITAL');
     assert.equal(l._ospId, ospProvId);
     assert.equal(l['Descrição Item'], 'Kit provisório');
   });
@@ -108,7 +108,7 @@ describe('gerarLinhas — FRs provisórias', () => {
     assert.equal(l['Num provisorio'], 5304);
     assert.equal(l['Validação OSP'], 'Aprovado');
     assert.equal(l['Status OSP'], 'Nota Fiscal');
-    assert.equal(l.Fornecedor, 'NUH! DIGITAL');
+    assert.equal(l.Fornecedor, 'VEGA! DIGITAL');
   });
 
   it('OSP sem nenhuma FR → zero linhas (não inventa FR)', () => {
@@ -135,7 +135,7 @@ describe('filtrar — número definitivo ou provisório', () => {
 });
 
 describe('Valor da NF', () => {
-  it("usa o 'Valor Total' do item, como a tela do SISOP", () => {
+  it("usa o 'Valor Total' do item, como a tela do portal", () => {
     const l = gerarLinhas(dadosBase()).find((x) => x['ID Sisop'] === frAprovId);
     assert.equal(l['Valor da NF'], '200,00');
   });
@@ -150,10 +150,10 @@ describe('Valor da NF', () => {
 
   it('mesmo número de Valor Produto, com separador de milhar', () => {
     const dados = dadosBase();
-    dados.contrato_taxa_instalacao[0]['Valor Total'] = 14579.25;
+    dados.contrato_taxa_instalacao[0]['Valor Total'] = 12345.67;
     const l = gerarLinhas(dados).find((x) => x['ID Sisop'] === frProvId);
-    assert.equal(l['Valor Produto'], '14579,25');
-    assert.equal(l['Valor da NF'], '14.579,25');
+    assert.equal(l['Valor Produto'], '12345,67');
+    assert.equal(l['Valor da NF'], '12.345,67');
   });
 
   it('FR sem item fica vazia', () => {

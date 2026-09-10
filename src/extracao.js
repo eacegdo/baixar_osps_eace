@@ -2,8 +2,8 @@
 // CLI da Extração completa OSP.
 //   node --env-file=.env src/extracao.js [--out extracao_osp] [--linhas 1500]
 //                                        [--zip] [--unico arquivo.csv] [--sep ';']
-//                                        [--fornecedor BRISANET] [--fornecedor-id 17746x1528]
-//                                        [--osp 254] [--osp-id 17825x2065] [--status Concluído]
+//                                        [--fornecedor ORION] [--fornecedor-id 17000x1000]
+//                                        [--osp 100] [--osp-id 17000x2000] [--status Concluído]
 //                                        [--ttl 900] [--sem-cache] [--atualizar]
 //                                        [--versao live|test]
 import { mkdir, rm, writeFile } from 'node:fs/promises';

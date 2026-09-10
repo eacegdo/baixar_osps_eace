@@ -2,7 +2,7 @@
 
 **What to build:** o nome de cada uma das trinta colunas existe duas vezes — na lista que vira o cabeçalho e como chave na montagem da linha — e nada obriga as duas a concordarem. Divergir não dá erro: dá coluna vazia em silêncio, que é como o bug do valor da nota fiscal passou despercebido.
 
-Depois deste ticket cada coluna é uma entrada só, declarando nome, de onde o valor sai e como se formata. Cabeçalho e linha derivam dessa mesma entrada, então dessincronizar deixa de ser possível. Ganho lateral: fica legível, numa tela, a origem de cada coluna — que é o que se confere contra a tela do SISOP.
+Depois deste ticket cada coluna é uma entrada só, declarando nome, de onde o valor sai e como se formata. Cabeçalho e linha derivam dessa mesma entrada, então dessincronizar deixa de ser possível. Ganho lateral: fica legível, numa tela, a origem de cada coluna — que é o que se confere contra a tela do portal.
 
 **Blocked by:** 04 — Linha só com o que o relatório mostra.
 
